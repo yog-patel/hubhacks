@@ -74,7 +74,8 @@ tracker:
   track_activation_threshold: 0.2
   lost_track_buffer: 4      # sampled frames
   minimum_matching_threshold: 0.9
-  box_expand: 2.5           # boxes are inflated for association: small fish move far between samples
+  box_expand: 3.0           # boxes are inflated for association: small fish move far between samples
+  min_assoc_size: 120       # ...and to at least this many px per side (at process_width)
 
 embedder:
   name: bioclip             # bioclip | dinov2
@@ -114,6 +115,9 @@ species_candidates:
   - {name: european_green_crab, common: European green crab, scientific: Carcinus maenas}
   - {name: atlantic_rock_crab, common: Atlantic rock crab, scientific: Cancer irroratus}
   - {name: sand_shrimp, common: sand shrimp, scientific: Crangon septemspinosa}
+# counted in the protocol's invertebrate column, not in total fish
+invertebrate_species: [european_green_crab, atlantic_rock_crab, sand_shrimp]
+
 background_prompts:        # used to reject crops that are not organisms
   - sandy seabed with rocks
   - murky green water
