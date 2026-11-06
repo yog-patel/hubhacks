@@ -1,0 +1,23 @@
+# environments and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+models/
+.DS_Store
+
+# generated outputs
+outputs/
+
+# original resource media (read-only originals; never committed)
+HubHacks Resources/
+data/raw_photos/
+data/videos/
+data/reference_images/
+data/held_out/
+data/unsorted/
+data/ground_truth/*.png
+*.MP4
+*.mp4
+*.mov
+*.zip

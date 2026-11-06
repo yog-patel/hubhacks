@@ -1,0 +1,36 @@
+{
+  "videos": [
+    "HubHacks Resources/T1-STAT2 411.MP4"
+  ],
+  "docs": [
+    "HubHacks Resources/Coastal Action DRAFT FFH Video Analysis Protocol.pdf"
+  ],
+  "photos": 28,
+  "crops": 237,
+  "per_label": {
+    "european_green_crab": 1,
+    "benthic_organism_unconfirmed": 38,
+    "small_schooling_fish": 198
+  },
+  "held_out": [
+    "european_green_crab",
+    "benthic_organism_unconfirmed"
+  ],
+  "zero_shot_by_kind": {
+    "dot": {
+      "mummichog": 127,
+      "threespine_stickleback": 56,
+      "winter_flounder": 6,
+      "atlantic_silverside": 4,
+      "rock_gunnel": 3,
+      "background:murky green water": 1,
+      "fourspine_stickleback": 1
+    },
+    "circle": {
+      "mummichog": 29,
+      "threespine_stickleback": 8,
+      "european_green_crab": 1,
+      "winter_flounder": 1
+    }
+  }
+}

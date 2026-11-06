@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: bluesight
+Version: 0.1.0
+Summary: BlueSight AI: local fish detection, counting and unfamiliar-species flagging for Coastal Action
+Requires-Python: <3.12,>=3.11

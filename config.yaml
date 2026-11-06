@@ -1,0 +1,135 @@
+# BlueSight AI configuration. Every path, threshold, rate and model name lives here.
+# Paths are relative to the project root.
+
+paths:
+  resources_dir: "HubHacks Resources"      # originals, read-only
+  raw_photos_dir: data/raw_photos          # zip extracted here (gitignored)
+  videos_dir: data/videos                  # symlinks to original videos
+  reference_dir: data/reference_images     # <species>/ crops used to build the registry
+  held_out_dir: data/held_out              # <species>/ crops kept OUT of the registry
+  unsorted_dir: data/unsorted              # crops whose species could not be inferred confidently
+  ground_truth_dir: data/ground_truth      # manual counts / point labels
+  instructions_dir: docs/instructions
+  manifest: data/manifest.csv
+  proposed_labels: data/proposed_labels.csv
+  outputs_dir: outputs
+  db_path: outputs/bluesight.db
+  runs_dir: outputs/runs
+  flags_dir: outputs/flags
+  registry_dir: outputs/registry           # approved-species reference images
+  cache_dir: outputs/cache
+  logs_dir: outputs/logs
+  model_cache_dir: models/hf               # downloaded once; HF_HUB_OFFLINE=1 afterwards
+
+runtime:
+  device: auto            # auto | cuda | mps | cpu
+  offline: true           # forbid any network access to model hubs after first download
+
+survey:
+  site_from_filename: true   # "T1-STAT2 411.MP4" -> site "T1-STAT2"
+  default_date: "2025-09-10" # from the photo filenames "T1_STAT 2_Sept 10" (year from protocol: Fall 2025)
+
+sampling:
+  fps: 2.0                # frames analysed per second of video
+  process_width: 1920     # frames are downscaled to this width for detection (4K -> 1080p)
+  crop_pad: 0.6           # padding around a box when cutting crops from the full-res frame
+  annotated_width: 1280   # width of the annotated output video
+
+# Coastal Action DRAFT FFH Video Analysis Protocol (overrides CLAUDE.md defaults; see DECISIONS.md)
+protocol:
+  trim_start_s: 60          # discard first minute (sediment settling)
+  trim_end_s: 60            # discard last minute
+  analysis_duration_s: 900  # analyse a 15-minute segment
+  subsample_interval_s: 60  # systematic subsample every 60 s -> 15 frames
+  count_window_s: 1.0       # "one second = one analysed frame" (+/-0.5 s tolerance)
+
+enhance:
+  clahe_clip: 3.0
+  clahe_grid: 8
+  white_balance: true       # gray-world colour correction for green/brown water
+  # visibility score = weighted mean of three 0..1 cues, each mapped linearly between lo and hi
+  contrast_range: [0.04, 0.10]    # RMS contrast of luminance (0..1); calibrated on T1-STAT2 411
+  sharpness_range: [0.4, 1.8]     # log10 variance of Laplacian at 960 px width
+  haze_range: [0.35, 0.56]        # mean dark-channel value (higher = hazier)
+  weights: {contrast: 0.4, sharpness: 0.3, haze: 0.3}
+
+detector:
+  name: motion              # motion | owlv2  (chosen by measured evaluation, see EVALUATION.md)
+  motion:
+    window_s: 8.0           # background = per-pixel median over +/- window
+    step_s: 1.0             # spacing of background frames
+    k: 1.0                  # noise floor added to the MAD
+    z_thresh: 2.5           # robust z-score threshold
+    min_area: 150           # px at process_width
+    max_area: 8000
+    min_elongation: 1.4     # fish are elongated; filters round sediment specks
+    blur: 5
+  owlv2:
+    model: google/owlv2-base-patch16-ensemble
+    prompts: ["a photo of a fish", "a photo of a crab"]
+    score_threshold: 0.10
+    grid: 3                 # tile the frame grid x grid (fish are small)
+
+tracker:
+  track_activation_threshold: 0.2
+  lost_track_buffer: 4      # sampled frames
+  minimum_matching_threshold: 0.9
+  box_expand: 2.5           # boxes are inflated for association: small fish move far between samples
+
+embedder:
+  name: bioclip             # bioclip | dinov2
+  bioclip_model: hf-hub:imageomics/bioclip
+  dinov2_model: facebook/dinov2-small
+  batch_size: 64
+
+identify:
+  best_crops: 5             # crops averaged per track
+  T_KNOWN: 0.75             # tuned values are written here by scripts/evaluate.py
+  T_UNKNOWN: 0.60
+  V_MIN: 0.30
+  MIN_FRAMES: 3             # sampled frames a track must last
+  MIN_AREA: 600             # mean box area (px at process_width) needed to attempt an ID
+  merge_similarity: 0.90    # flagged tracks this similar are merged into one review item
+  max_review_items: 30      # per video; most unfamiliar first
+
+evidence:
+  clip_margin_s: 2.0
+  clip_width: 960
+  max_clip_s: 20.0
+
+# Candidate species for zero-shot label proposals. The protocol PDF contains NO species list,
+# so this list is an assumption (common nearshore Nova Scotia fauna) - see DECISIONS.md.
+species_candidates:
+  - {name: atlantic_silverside, common: Atlantic silverside, scientific: Menidia menidia}
+  - {name: threespine_stickleback, common: threespine stickleback, scientific: Gasterosteus aculeatus}
+  - {name: fourspine_stickleback, common: fourspine stickleback, scientific: Apeltes quadracus}
+  - {name: mummichog, common: mummichog, scientific: Fundulus heteroclitus}
+  - {name: atlantic_tomcod, common: Atlantic tomcod, scientific: Microgadus tomcod}
+  - {name: winter_flounder, common: winter flounder, scientific: Pseudopleuronectes americanus}
+  - {name: cunner, common: cunner, scientific: Tautogolabrus adspersus}
+  - {name: rock_gunnel, common: rock gunnel, scientific: Pholis gunnellus}
+  - {name: atlantic_herring, common: Atlantic herring, scientific: Clupea harengus}
+  - {name: american_sand_lance, common: American sand lance, scientific: Ammodytes americanus}
+  - {name: grubby_sculpin, common: grubby sculpin, scientific: Myoxocephalus aenaeus}
+  - {name: european_green_crab, common: European green crab, scientific: Carcinus maenas}
+  - {name: atlantic_rock_crab, common: Atlantic rock crab, scientific: Cancer irroratus}
+  - {name: sand_shrimp, common: sand shrimp, scientific: Crangon septemspinosa}
+background_prompts:        # used to reject crops that are not organisms
+  - sandy seabed with rocks
+  - murky green water
+  - seaweed and algae
+
+labels:
+  min_confidence: 0.50      # zero-shot proposals at/above this would be accepted ...
+  trust_zero_shot: false    # ... but only if trusted. Measured unreliable on these crops (DECISIONS.md)
+  annotation_labels:        # labels implied by HOW the biologists marked the photos
+    dot: small_schooling_fish            # red tally dots placed on individual schooling fish
+    circle: benthic_organism_unconfirmed # red circles around single organisms, species not stated
+
+# Kept OUT of the registry to test the unfamiliar-fish flag (see DECISIONS.md)
+held_out_species: [european_green_crab, benthic_organism_unconfirmed]
+
+evaluation:
+  tuning_half: first        # thresholds tuned on the first half of the video; demo uses the second half
+  ground_truth_file: data/ground_truth/manual_counts.csv
+  reviewer_seconds_per_item: 10
