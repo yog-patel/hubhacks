@@ -83,8 +83,8 @@ def image_metrics(sims: dict, t_known: float, t_unknown: float) -> dict[str, flo
 
 
 def tune_similarity(sims: dict) -> tuple[float, float, pd.DataFrame]:
-    """T_KNOWN maximises (held-out flagged % - known false-alarm %); T_UNKNOWN maximises
-    (held-out unfamiliar % - known unfamiliar %) with T_UNKNOWN <= T_KNOWN. Ties -> fewer false alarms."""
+    """T_KNOWN maximises (held-out flagged % - known false-alarm %), ties -> fewer false alarms.
+    T_UNKNOWN = highest value with <= 5% of known crops called unfamiliar."""
     grid = np.round(np.arange(0.40, 0.951, 0.01), 2)
     rows = []
     for tk in grid:
@@ -92,37 +92,44 @@ def tune_similarity(sims: dict) -> tuple[float, float, pd.DataFrame]:
         rows.append({"T_KNOWN": tk, "J": m["held_flagged_pct"] - m["known_false_alarm_pct"], **m})
     df = pd.DataFrame(rows)
     best_tk = float(df.sort_values(["J", "known_false_alarm_pct"], ascending=[False, True]).iloc[0].T_KNOWN)
-    rows2 = []
-    for tu in grid[grid <= best_tk]:
-        m = image_metrics(sims, best_tk, tu)
-        rows2.append({"T_UNKNOWN": tu, "J2": m["held_unfamiliar_pct"] - m["known_flagged_unfamiliar_pct"], **m})
-    df2 = pd.DataFrame(rows2)
-    best_tu = float(df2.sort_values(["J2", "known_flagged_unfamiliar_pct"], ascending=[False, True]).iloc[0].T_UNKNOWN)
+    # T_UNKNOWN: the highest value that calls at most 5% of KNOWN fish "unfamiliar" (wrongly telling a
+    # biologist a familiar fish may be new is the costliest error); the band in between stays "uncertain".
+    ok = [tu for tu in grid[grid <= best_tk] if image_metrics(sims, best_tk, tu)["known_flagged_unfamiliar_pct"] <= 5.0]
+    best_tu = float(max(ok)) if ok else float(grid[0])
     return best_tk, best_tu, df
 
 
 # --------------------------------------------------------------------------- V_MIN
 def tune_vmin(cfg: dict, db: DB, run_id: str, th: Thresholds) -> tuple[float, pd.DataFrame]:
-    """Pick the lowest V_MIN above which the per-track 'unfamiliar' rate is no higher than 1.5x the
-    clear-water rate (visibility >= 0.5). Murky footage producing extra unfamiliar flags is exactly
-    what the gate must stop. Uses the TUNING half only, with the visibility gate disabled."""
+    """Tune V_MIN on the TUNING half only (visibility gate disabled).
+
+    Murky crops carry no more information than clear ones, so if murky tracks are matched to a known
+    species MORE often than clear-water tracks, the matcher is matching haze, not fish. V_MIN is
+    set to the upper edge of the contiguous low-visibility range whose known-match rate exceeds the
+    clear-water (visibility >= 0.5) rate by more than 10 percentage points. The unfamiliar-flag
+    rate per bin is reported too.
+    """
     tr = pd.DataFrame(db.q("SELECT * FROM tracks WHERE run_id=?", (run_id,)))
     tr = tr[(tr.n_frames >= th.MIN_FRAMES) & (tr.mean_area >= th.MIN_AREA)].copy()
     tr["status_nogate"] = [decide_status(s, 1.0, 99, 1e9, th) for s in tr.best_similarity]
+    tr["known"] = tr.status_nogate == KNOWN
     tr["unf"] = tr.status_nogate == UNFAMILIAR
-    bins = np.round(np.arange(0.10, 0.81, 0.05), 2)
+    bins = np.round(np.arange(0.10, 0.86, 0.05), 2)
     tr["bin"] = pd.cut(tr.visibility, bins, labels=bins[:-1])
-    tab = tr.groupby("bin", observed=False).agg(tracks=("unf", "size"), unfamiliar_rate=("unf", "mean")).reset_index()
+    tab = tr.groupby("bin", observed=False).agg(tracks=("known", "size"), known_rate=("known", "mean"),
+                                                unfamiliar_rate=("unf", "mean"), mean_similarity=("best_similarity", "mean")).reset_index()
     clear = tr[tr.visibility >= 0.5]
-    base = float(clear.unf.mean()) if len(clear) else 0.0
+    base = float(clear.known.mean()) if len(clear) else 0.0
     vmin = float(bins[0])
-    for b in sorted(tab["bin"].astype(float), reverse=True):
-        rows = tab[(tab["bin"].astype(float) >= b) & (tab.tracks >= 5)]
-        bad = rows[rows.unfamiliar_rate > max(1.5 * base, base + 0.02)]
-        if len(bad):
-            vmin = float(bad["bin"].astype(float).max()) + 0.05
+    for row in tab.sort_values("bin").itertuples():
+        if row.tracks < 5:
+            continue
+        if row.known_rate > base + 0.10 and float(row.bin) < 0.5:
+            vmin = float(row.bin) + 0.05
+        else:
             break
-    tab["clear_water_rate"] = base
+    tab["clear_water_known_rate"] = base
+    tab["clear_water_unfamiliar_rate"] = float(clear.unf.mean()) if len(clear) else 0.0
     return round(vmin, 2), tab
 
 
@@ -314,15 +321,21 @@ def write_markdown(r: dict, vtab: pd.DataFrame | None, cfg: dict) -> None:
           "## 4. Threshold tuning", "",
           "| Threshold | Before | After | How it was tuned |", "|---|---|---|---|",
           f"| T_KNOWN | {r['thresholds_before']['T_KNOWN']} | {r['thresholds_after']['T_KNOWN']} | maximise (held-out flagged %) − (known false-alarm %) on the image-level sets (`outputs/eval/threshold_sweep.csv`) |",
-          f"| T_UNKNOWN | {r['thresholds_before']['T_UNKNOWN']} | {r['thresholds_after']['T_UNKNOWN']} | maximise (held-out unfamiliar %) − (known unfamiliar %), with T_UNKNOWN ≤ T_KNOWN |",
-          f"| V_MIN | {r['thresholds_before']['V_MIN']} | {r['thresholds_after']['V_MIN']} | lowest visibility above which the per-track unfamiliar rate stays ≤ 1.5× the clear-water rate, tuning half only (`outputs/eval/vmin_tuning.csv`) |",
+          f"| T_UNKNOWN | {r['thresholds_before']['T_UNKNOWN']} | {r['thresholds_after']['T_UNKNOWN']} | highest value that calls ≤ 5% of known crops 'unfamiliar' (between T_UNKNOWN and T_KNOWN items are 'uncertain: probably X?') |",
+          f"| V_MIN | {r['thresholds_before']['V_MIN']} | {r['thresholds_after']['V_MIN']} | top of the low-visibility range where tracks match the known species > 10 points MORE often than in clear water, i.e. the matcher is matching haze. Tuning half only (`outputs/eval/vmin_tuning.csv`) |",
           f"| MIN_FRAMES / MIN_AREA | {r['thresholds_before']['MIN_FRAMES']} / {r['thresholds_before']['MIN_AREA']} | {r['thresholds_after']['MIN_FRAMES']} / {r['thresholds_after']['MIN_AREA']} | not tuned |", ""]
     if vtab is not None:
-        L += ["V_MIN tuning data (tuning half, visibility gate disabled):", "", "| Visibility bin | Tracks | Unfamiliar rate | Clear-water rate |", "|---|---|---|---|"]
+        cw = vtab.clear_water_known_rate.iloc[0]
+        L += ["V_MIN tuning data (tuning half, persistent tracks, visibility gate disabled, after the T_KNOWN/T_UNKNOWN tuning). "
+              f"Clear-water (≥ 0.5) known-match rate = {cw:.2f}, unfamiliar rate = {vtab.clear_water_unfamiliar_rate.iloc[0]:.2f}:", "",
+              "| Visibility bin | Tracks | Matched as known | Flagged unfamiliar | Mean best similarity |", "|---|---|---|---|---|"]
         for v in vtab.itertuples():
             if v.tracks:
-                L.append(f"| {v.bin:.2f}–{v.bin + 0.05:.2f} | {v.tracks} | {v.unfamiliar_rate:.2f} | {v.clear_water_rate:.2f} |")
-        L.append("")
+                L.append(f"| {v.bin:.2f}–{v.bin + 0.05:.2f} | {v.tracks} | {v.known_rate:.2f} | {v.unfamiliar_rate:.2f} | {v.mean_similarity:.3f} |")
+        L += ["", "**Finding:** in murky water the risk on this footage is not mainly false 'new species' flags (murky tracks are flagged "
+              "unfamiliar *less* often). It is the opposite: featureless haze resembles the pale, hazy reference crops, so murky blobs get "
+              "confidently mislabelled as the known species. The visibility gate stops both, and those tracks are counted in the protocol's "
+              "'Unknown/Unable to ID due to visibility' column instead.", ""]
     L += ["## 5. Video-level behaviour with the tuned thresholds", "", "| | Tuning half | Demo half |", "|---|---|---|"]
     t, d = rt["tuning"], rt["demo"]
     L += [f"| Mean visibility | {t['visibility']['mean']:.2f} | {d['visibility']['mean']:.2f} |",
@@ -335,6 +348,24 @@ def write_markdown(r: dict, vtab: pd.DataFrame | None, cfg: dict) -> None:
     if t.get("protocol_window"):
         pw = t["protocol_window"]
         L += [f"Protocol window ({pw['start_s']:.0f}–{pw['end_s']:.0f} s, {pw['n_subsamples']} subsamples): MeanCount total fish = **{pw['MeanCount_total_fish']}**, by column: {pw['MeanCount_by_label']}", ""]
+    dr_file = EVAL / "demo_rehearsal.json"
+    if dr_file.exists():
+        dr = json.loads(dr_file.read_text())
+        fi = dr["first_review_item"]
+        known = dr["tracks_known_as_new_species"]
+        crab_span = [t for t in known if t["end_s"] >= 1290 and t["start_s"] <= 1306]
+        L += ["## 5b. Video level: the held-out green crab in the demo window (`scripts/rehearse_demo.py`)", "",
+              f"Demo window {dr['window']['start_s']:.0f}–{dr['window']['end_s']:.0f} s (21:20–22:35, demo half). A large European green crab, which is held out of the registry, "
+              "walks along the pole from about 21:31 to 21:45 (checked by eye in the frames).", "",
+              f"* **Before approval:** the crab's track is review item #1 (the most unfamiliar), status **{fi['status']}**, best similarity {fi['best_similarity']:.2f} "
+              f"to the only registry species. It is **flagged as unfamiliar, not mislabelled.** A second crab track (21:43–21:48) is also flagged unfamiliar (0.53).",
+              f"* **Approved** as '{dr['approved_as']}' from the first item's 5 crops. The re-run took {dr['rerun_runtime_s']:.0f} s from cache.",
+              f"* **After approval:** {len(known)} tracks are recognised as {dr['approved_as']}. **{len(crab_span)} of them fall inside the walking crab's time span**, including the second, "
+              f"unreviewed crab track, which is now recognised automatically. The other {len(known) - len(crab_span)} are sand or caustic patches that resemble the sandy background of the crab crops. One of them "
+              "sits where the biologists circled a camouflaged crab at 22:00, but its crops can't confirm that. "
+              f"{dr['tracks_uncertain_as_new_species']} more tracks become 'probably {dr['approved_as']}?'.",
+              "* **Conclusion:** the flag-approve-recognise loop works, but a species approved from a single track has a loose prototype. On sandy footage it over-matches until "
+              "reviewers confirm more examples (Existing species) and reject sand items. Tighter crops were tested (padding 0.6 → 0.15) and improved separation only marginally (sand max 0.86 → 0.87 vs crab 0.83 → 0.85).", ""]
     L += ["## 6. Honest assessment", "",
           "* **Detection is the weak link.** The fish are faint, translucent and about 50 px long at 1080p. The motion detector under-detects dense, slow schools "
           "and picks up some sunlight caustics on the sand. Many of those false positives are dropped as transient, but some persist and appear as 'uncertain' review items "

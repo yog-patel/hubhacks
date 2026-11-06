@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from bluesight.identify import (KNOWN, LOW_VIS, UNCERTAIN, UNFAMILIAR, Thresholds, classify_track,
+from bluesight.identify import (KNOWN, auto_reject, LOW_VIS, UNCERTAIN, UNFAMILIAR, Thresholds, classify_track,
                                 decide_status, merge_flagged, select_best, top_matches)
 
 TH = Thresholds(T_KNOWN=0.8, T_UNKNOWN=0.6, V_MIN=0.3, MIN_FRAMES=3, MIN_AREA=100)
@@ -69,3 +69,13 @@ def test_merge_similar_flags():
 
 def test_select_best_crops():
     assert select_best([(1, "a"), (5, "b"), (3, "c")], 2) == ["b", "c"]
+
+
+def test_auto_reject_only_suppresses_flagged_items_like_rejected_ones():
+    pole = unit([0, 0, 0, 0, 0, 0, 0, 1])
+    rejected = np.stack([pole])
+    near_pole = unit([0, 0, 0, 0, 0, 0, 0.1, 1])
+    assert auto_reject(UNFAMILIAR, near_pole, 0.3, rejected, 0.9)
+    assert not auto_reject(KNOWN, near_pole, 0.95, rejected, 0.9)          # known species never touched
+    assert not auto_reject(UNCERTAIN, unit([1, 0, 0, 0, 0, 0, 0, 0]), 0.7, rejected, 0.9)
+    assert not auto_reject(UNFAMILIAR, near_pole, 0.3, None, 0.9)          # nothing rejected yet

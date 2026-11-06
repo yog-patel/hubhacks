@@ -140,3 +140,16 @@ def merge_flagged(keys: Sequence[Any], embs: np.ndarray, sim_thresh: float, orde
             groups.append([i])
             cents.append(e / (np.linalg.norm(e) + 1e-12))
     return [[keys[i] for i in g] for g in groups]
+
+
+def auto_reject(status: str, emb: np.ndarray | None, best_similarity: float, rejected: np.ndarray | None, reject_sim: float) -> bool:
+    """True if a FLAGGED track looks like something a reviewer already rejected as "not a fish".
+
+    Only uncertain/unfamiliar tracks can be auto-rejected, and only when they are more similar to a
+    rejected item than to any species. Known species are never touched and nothing is ever
+    auto-accepted, so a species still only enters the registry by human approval.
+    """
+    if rejected is None or emb is None or len(rejected) == 0 or status not in FLAG_STATUSES:
+        return False
+    ns = float((rejected @ emb).max())
+    return ns >= reject_sim and ns > best_similarity

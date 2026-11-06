@@ -246,7 +246,13 @@ def page_review() -> None:
                "Approving saves the crops as reference images and rebuilds that species' prototype immediately (no retraining).")
     if not reviewer.strip():
         st.warning("Enter your name in the sidebar to record decisions.")
-    flags = db.q("SELECT * FROM flags WHERE review_decision IS NULL ORDER BY (status='unfamiliar') DESC, best_similarity ASC")
+    run_ids = [r["run_id"] for r in db.q("SELECT run_id FROM runs ORDER BY started_at DESC")]
+    opts = ["All analyses"] + run_ids
+    default = opts.index(st.session_state["last_run"]) if st.session_state.get("last_run") in opts else (1 if run_ids else 0)
+    which = st.selectbox("Show items from", opts, index=default)
+    where = "" if which == "All analyses" else " AND run_id=?"
+    flags = db.q("SELECT * FROM flags WHERE review_decision IS NULL" + where +
+                 " ORDER BY (status='unfamiliar') DESC, best_similarity ASC", () if not where else (which,))
     if not flags:
         st.success("Nothing awaiting review.")
     reg = None

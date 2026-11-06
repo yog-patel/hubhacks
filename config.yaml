@@ -61,7 +61,7 @@ detector:
     k: 1.0                  # noise floor added to the MAD
     z_thresh: 2.5           # robust z-score threshold
     min_area: 150           # px at process_width
-    max_area: 8000
+    max_area: 80000         # large enough for a whole crab (~400x150 px at 1080p); see DECISIONS D6
     min_elongation: 1.4     # fish are elongated; filters round sediment specks
     blur: 5
   owlv2:
@@ -85,11 +85,12 @@ embedder:
 
 identify:
   best_crops: 5             # crops averaged per track
-  T_KNOWN: 0.75             # tuned values are written here by scripts/evaluate.py
-  T_UNKNOWN: 0.60
-  V_MIN: 0.30
+  T_KNOWN: 0.77  # tuned values are written here by scripts/evaluate.py
+  T_UNKNOWN: 0.68
+  V_MIN: 0.4
   MIN_FRAMES: 3             # sampled frames a track must last
   MIN_AREA: 600             # mean box area (px at process_width) needed to attempt an ID
+  reject_similarity: 0.90  # flagged tracks this similar to a reviewer-REJECTED item are auto-rejected (never auto-accepted)
   merge_similarity: 0.90    # flagged tracks this similar are merged into one review item
   max_review_items: 30      # per video; most unfamiliar first
 

@@ -27,7 +27,7 @@ from .config import load_config, path, resolve_device
 from .db import DB, dumps, to_blob
 from .detect import Frame, get_detector
 from .enhance import visibility_score
-from .identify import (FLAG_STATUSES, KNOWN, LOW_VIS, REJECTED, UNCERTAIN, UNFAMILIAR, Thresholds,
+from .identify import (FLAG_STATUSES, auto_reject, KNOWN, LOW_VIS, REJECTED, UNCERTAIN, UNFAMILIAR, Thresholds,
                        classify_track, crop_quality, mean_embedding, merge_flagged)
 from .io_video import VideoWriter, iter_sampled_frames, resize_width, video_info
 from .logs import get_logger
@@ -144,16 +144,24 @@ def _detect_and_track(video: Path, start: float, end: float, cfg: dict[str, Any]
 
 
 # ---------------------------------------------------------------------------- stage B
-def _embed_tracks(cdir: Path, embedder, progress: Progress) -> dict[int, np.ndarray]:
-    """Embed each track's best crops and average them (cached per embedder)."""
+def _embed_tracks(cdir: Path, embedder, progress: Progress, eligible: set[int] | None = None) -> dict[int, np.ndarray]:
+    """Embed each eligible track's best crops and average them (cached per embedder).
+
+    Tracks shorter than MIN_FRAMES are never identified (visibility gate), so they are not embedded:
+    this saves most of the embedding energy on noisy footage.
+    """
     f = cdir / f"emb_{slug(embedder.version)}.npz"
     if f.exists():
         z = np.load(f)
-        return {int(k): z[k] for k in z.files}
+        have = {int(k): z[k] for k in z.files}
+        if eligible is None or eligible <= set(have) | _no_crops(cdir, eligible):
+            return have
     with open(cdir / "crops.pkl", "rb") as fh:
         crops = pickle.load(fh)
     keys, ims, owner = [], [], []
     for tid, lst in crops.items():
+        if eligible is not None and tid not in eligible:
+            continue
         for jpg, _ in lst:
             ims.append(cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR))
             owner.append(tid)
@@ -165,6 +173,12 @@ def _embed_tracks(cdir: Path, embedder, progress: Progress) -> dict[int, np.ndar
     res = {tid: mean_embedding(np.stack(v)) for tid, v in out.items()}
     np.savez(f, **{str(k): v for k, v in res.items()})
     return res
+
+
+def _no_crops(cdir: Path, ids: set[int]) -> set[int]:
+    with open(cdir / "crops.pkl", "rb") as fh:
+        crops = pickle.load(fh)
+    return {i for i in ids if i not in crops}
 
 
 # ---------------------------------------------------------------------------- main entry
@@ -220,7 +234,9 @@ def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s
     registry = Registry(cfg, db)
     embedder = registry.embedder
     progress(0.67, "embedding track crops")
-    embs = _embed_tracks(cdir, embedder, lambda f, m: progress(0.67, m))
+    nf = dets[dets.track_id >= 0].groupby("track_id").frame_idx.nunique()
+    eligible = {int(t) for t, n in nf.items() if n >= int(cfg["identify"]["MIN_FRAMES"])}
+    embs = _embed_tracks(cdir, embedder, lambda f, m: progress(0.67, m), eligible)
     timings["embed_s"] = time.time() - t0
 
     # C. identify each track
@@ -238,10 +254,21 @@ def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s
                 human[int(tid)] = (REJECTED, None)
             elif r["review_decision"] in ("new_species", "existing_species") and r["review_species"]:
                 human[int(tid)] = (KNOWN, r["review_species"])
+    # negatives taught by reviewers: embeddings of items rejected as "not a fish" (any video)
+    from .db import from_blob
+
+    negs = [from_blob(r["embedding"]) for r in db.q("SELECT embedding FROM flags WHERE review_decision='reject' AND embedding IS NOT NULL")]
+    N = np.stack(negs) if negs else None
+    rej_sim = float(cfg["identify"].get("reject_similarity", 1.01))
     track_rows = []
+    n_auto_rejected = 0
     for tid, g in trk.groupby("track_id"):
-        res = classify_track(embs.get(int(tid)), float(g.vis.mean()), int(g.frame_idx.nunique()), float(g.area.mean()), names, protos, th)
+        e = embs.get(int(tid))
+        res = classify_track(e, float(g.vis.mean()), int(g.frame_idx.nunique()), float(g.area.mean()), names, protos, th)
         status, species, verified = res.status, res.species, False
+        if auto_reject(status, e, res.best_similarity, N, rej_sim):
+            status, species = REJECTED, None  # looks like something a reviewer already rejected
+            n_auto_rejected += 1
         if int(tid) in human:
             status, species = human[int(tid)]
             verified = True
@@ -261,10 +288,8 @@ def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s
         E = np.stack([embs[k] for k in keys])
         unfam = (1.0 - flagged.best_similarity.to_numpy())
         groups = merge_flagged(keys, E, float(cfg["identify"]["merge_similarity"]), unfam)
-    # remove stale (unreviewed) flags of this run
-    for r in db.q("SELECT flag_id, folder FROM flags WHERE run_id=? AND review_decision IS NULL", (run_id,)):
-        if r["folder"] and Path(r["folder"]).exists():
-            shutil.rmtree(r["folder"], ignore_errors=True)
+    # remove stale (unreviewed) flags of this run; remember them so unchanged evidence can be reused
+    previous = {r["flag_id"]: r for r in db.q("SELECT flag_id, folder, track_ids FROM flags WHERE run_id=? AND review_decision IS NULL", (run_id,))}
     db.x("DELETE FROM flags WHERE run_id=? AND review_decision IS NULL", (run_id,))
     with open(cdir / "crops.pkl", "rb") as fh:
         crops_by_track = pickle.load(fh)
@@ -309,14 +334,23 @@ def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s
             "thresholds": {"T_KNOWN": th.T_KNOWN, "T_UNKNOWN": th.T_UNKNOWN, "V_MIN": th.V_MIN},
             "review": {"decision": None, "species": None, "reviewer": None, "timestamp": None},
         }
-        if make_evidence:
+        old = previous.pop(fid, None)
+        reuse = (old is not None and json.loads(old["track_ids"]) == it["tracks"] and (folder / "clip.mp4").exists())
+        if reuse:
+            (folder / "flag.json").write_text(json.dumps(flag, indent=2, default=float))
+        elif make_evidence:
             progress(0.75 + 0.15 * rank / max(1, min(len(items), max_items)), f"evidence package {rank + 1}")
+            if folder.exists():
+                shutil.rmtree(folder, ignore_errors=True)
             write_flag_package(folder, flag, crops, str(video), tr_boxes, cfg)
         db.x("INSERT OR REPLACE INTO flags(flag_id, run_id, video_file, status, track_ids, start_s, end_s, top3, best_similarity, "
              "visibility, track_frames, folder, embedding, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
              (fid, run_id, video.name, it["status"], json.dumps(it["tracks"]), it["start"], it["end"], dumps(it["top3"]),
               it["best"], it["vis"], it["frames"], str(folder), to_blob(it["emb"]), dt.datetime.now().isoformat(timespec="seconds")))
         flag_ids.append(fid)
+    for r in previous.values():  # flags that no longer exist (e.g. now recognised as a known species)
+        if r["folder"] and Path(r["folder"]).exists():
+            shutil.rmtree(r["folder"], ignore_errors=True)
     timings["evidence_s"] = time.time() - t0
 
     # E. counts (protocol MeanCount over systematic subsamples + MaxN)
@@ -423,6 +457,7 @@ def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s
         "visibility": vs, "n_sampled_frames": int(len(frames)), "n_detections": int(len(dets)),
         "n_tracks": int(len(tracks)),
         "transient_detections_per_frame_not_counted": round(transient_per_frame, 2),
+        "auto_rejected_tracks": n_auto_rejected,
         "track_status_counts": tracks.status.value_counts().to_dict() if len(tracks) else {},
         "species": species_rows, "subsamples": sub_rows,
         "MeanCount_total_fish": round(float(np.mean([r["total_fish_count"] for r in sub_rows])), 3) if sub_rows else 0.0,
