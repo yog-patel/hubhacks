@@ -1,5 +1,0 @@
-pyproject.toml
-src/bluesight.egg-info/PKG-INFO
-src/bluesight.egg-info/SOURCES.txt
-src/bluesight.egg-info/dependency_links.txt
-src/bluesight.egg-info/top_level.txt

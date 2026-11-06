@@ -21,3 +21,7 @@ data/ground_truth/*.png
 *.mp4
 *.mov
 *.zip
+
+# derived from the team photos (rebuilt by scripts/prepare_resources.py)
+data/crops/
+*.egg-info/
