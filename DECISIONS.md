@@ -143,3 +143,9 @@ An automated pass with Playwright on every page found no images without alt text
 * Streamlit's built-in icon buttons (help "?", table toolbar, fullscreen) are 16–24 px. That meets WCAG 2.2's 24 px minimum for most of them, with spacing for the help icons, and can't be resized without patching Streamlit.
 * Data tables are drawn on a canvas by Streamlit's grid component. It has its own keyboard navigation, but screen-reader support is limited. The CSV download and the "Show this chart as a table" views are the accessible fallback.
 * Not tested: real screen readers (VoiceOver/NVDA) and 200% zoom. Both are recommended before production use.
+
+## D24. Light and dark mode, visual refresh
+- `.streamlit/config.toml` defines `[theme.light]` and `[theme.dark]`. The app follows the computer's setting, and the reader can override it in ⋮ → Settings (so `toolbarMode` is now `viewer`; `minimal` hides that menu).
+- Every custom colour in `app/ui/theme.py` is a CSS `light-dark()` token. Streamlit sets `color-scheme` on the app root, so the custom components switch along with Streamlit's own widgets, with no JavaScript. The only places CSS can't reach (Altair charts, the before/after iframe and the logo) read `st.context.theme.type`.
+- Dark palette: deep-water background `#0B141A`. All text is at least 4.5:1 (ink 14.2, muted 6.7, status colours 7.5–9.2). Primary buttons use `#1F7C96` (4.8:1 with white text); text accents use the lighter `#5BB8D3`.
+- Page titles and species names use a system book serif (Iowan Old Style / New York / Georgia) for a field-guide feel; nothing is downloaded. Hardcoded hex colours in the pages were replaced with tone classes (`t-ok`, `t-warn`, `t-bad`, `t-muted`, `t-info`).

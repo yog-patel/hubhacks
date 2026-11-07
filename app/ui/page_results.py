@@ -53,48 +53,52 @@ def timeline_data(db_path: str, run_id: str, generated_at: str) -> tuple[pd.Data
 def timeline(cnt: pd.DataFrame, fr: pd.DataFrame, v_min: float, subsamples: list[float]) -> tuple[alt.Chart, alt.Chart]:
     """Two charts stacked on the same time axis (never a dual y-axis): fish counted per frame, and visibility.
     Both use the same fixed x domain, so they line up exactly."""
+    P = T.chart_palette()
     dom = [float(fr.minute.min()), float(fr.minute.max())]
     x = alt.X("minute:Q", title="Video time (minutes)", scale=alt.Scale(domain=dom, zero=False, nice=False),
-              axis=alt.Axis(grid=False, labelFontSize=13, titleFontSize=14, titleColor="#3E5466", labelColor="#3E5466"))
+              axis=alt.Axis(grid=False, labelFontSize=13, titleFontSize=14, titleColor=P["text"], labelColor=P["text"]))
     hover = alt.selection_point(fields=["minute"], nearest=True, on="pointerover", clear="pointerout", empty=False)
     base_c = alt.Chart(cnt)
-    area = base_c.mark_area(color="#2A78D6", opacity=0.18, interpolate="step-after").encode(x=x, y="counted:Q")
-    line = base_c.mark_line(color="#2A78D6", strokeWidth=2, interpolate="step-after").encode(
+    area = base_c.mark_area(color=P["count"], opacity=0.18, interpolate="step-after").encode(x=x, y="counted:Q")
+    line = base_c.mark_line(color=P["count"], strokeWidth=2, interpolate="step-after").encode(
         x=x, y=alt.Y("counted:Q", title="Fish counted in frame",
-                     axis=alt.Axis(labelFontSize=13, titleFontSize=14, titleColor="#3E5466", labelColor="#3E5466",
-                                   gridColor="#E3EAEF", tickCount=4)))
-    pts = base_c.mark_point(size=60, filled=True, color="#2A78D6").encode(
+                     axis=alt.Axis(labelFontSize=13, titleFontSize=14, titleColor=P["text"], labelColor=P["text"],
+                                   gridColor=P["grid"], tickCount=4)))
+    pts = base_c.mark_point(size=60, filled=True, color=P["count"]).encode(
         x=x, y="counted:Q", opacity=alt.condition(hover, alt.value(1), alt.value(0)),
         tooltip=[alt.Tooltip("t_s:Q", title="Seconds", format=".1f"), alt.Tooltip("counted:Q", title="Fish counted")]
     ).add_params(hover)
     sub = pd.DataFrame({"minute": [s / 60 for s in subsamples]})
     sub = sub[(sub.minute >= dom[0]) & (sub.minute <= dom[1])]
-    subs = alt.Chart(sub).mark_rule(color="#8197A6", strokeDash=[2, 3]).encode(x="minute:Q")
+    subs = alt.Chart(sub).mark_rule(color=P["sub"], strokeDash=[2, 3]).encode(x="minute:Q")
     top = (subs + area + line + pts).properties(height=190, title=alt.Title(
         "Fish counted per sampled frame", subtitle="Dotted lines: the protocol's 60-second subsample points",
-        fontSize=15, subtitleFontSize=13, subtitleColor="#566B7C", anchor="start"))
+        fontSize=15, subtitleFontSize=13, subtitleColor=P["muted"], color=P["text"], anchor="start"))
 
     base_v = alt.Chart(fr)
-    low = base_v.transform_filter(alt.datum.visibility < v_min).mark_bar(color="#C9D1D8", width=alt.RelativeBandSize(1)).encode(
+    low = base_v.transform_filter(alt.datum.visibility < v_min).mark_bar(color=P["low"], width=alt.RelativeBandSize(1)).encode(
         x=x, y=alt.datum(0), y2=alt.datum(1))
-    vline = base_v.mark_line(color="#0B5C7A", strokeWidth=2).encode(
+    vline = base_v.mark_line(color=P["vis"], strokeWidth=2).encode(
         x=x, y=alt.Y("visibility:Q", title="Visibility (0–1)", scale=alt.Scale(domain=[0, 1]),
-                     axis=alt.Axis(labelFontSize=13, titleFontSize=14, titleColor="#3E5466", labelColor="#3E5466",
-                                   gridColor="#E3EAEF", tickCount=3)))
+                     axis=alt.Axis(labelFontSize=13, titleFontSize=14, titleColor=P["text"], labelColor=P["text"],
+                                   gridColor=P["grid"], tickCount=3)))
     vhover = alt.selection_point(fields=["minute"], nearest=True, on="pointerover", clear="pointerout", empty=False)
-    vpts = base_v.mark_point(size=60, filled=True, color="#0B5C7A").encode(
+    vpts = base_v.mark_point(size=60, filled=True, color=P["vis"]).encode(
         x=x, y="visibility:Q", opacity=alt.condition(vhover, alt.value(1), alt.value(0)),
         tooltip=[alt.Tooltip("t_s:Q", title="Seconds", format=".1f"), alt.Tooltip("visibility:Q", title="Visibility", format=".2f")]
     ).add_params(vhover)
-    rule = alt.Chart(pd.DataFrame({"v": [v_min]})).mark_rule(color="#B42318", strokeDash=[6, 4], strokeWidth=1.5).encode(y="v:Q")
+    rule = alt.Chart(pd.DataFrame({"v": [v_min]})).mark_rule(color=P["rule"], strokeDash=[6, 4], strokeWidth=1.5).encode(y="v:Q")
     rule_lbl = alt.Chart(pd.DataFrame({"v": [v_min], "t": [f"identification threshold {v_min:.2f}"]})).mark_text(
-        align="left", dx=4, dy=-7, fontSize=12, color="#B42318").encode(y="v:Q", x=alt.value(0), text="t:N")
+        align="left", dx=4, dy=-7, fontSize=12, color=P["rule"]).encode(y="v:Q", x=alt.value(0), text="t:N")
     bot = (low + vline + vpts + rule + rule_lbl).properties(height=150, title=alt.Title(
         "Visibility", subtitle="Grey bands: too murky to identify species; fish there are counted as 'Unable to ID'",
-        fontSize=15, subtitleFontSize=13, subtitleColor="#566B7C", anchor="start"))
+        fontSize=15, subtitleFontSize=13, subtitleColor=P["muted"], color=P["text"], anchor="start"))
     font = "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif"
-    return (top.configure_view(stroke=None).configure(font=font),
-            bot.configure_view(stroke=None).configure(font=font))
+    def done(c: alt.Chart) -> alt.Chart:
+        # configure() first: it replaces the whole config, so view/axis settings must come after it
+        return c.configure(font=font, background="transparent").configure_view(stroke=None).configure_axis(
+            domainColor=P["grid"], tickColor=P["grid"])
+    return done(top), done(bot)
 
 
 def pct(f: float) -> str:
@@ -124,9 +128,9 @@ def species_table(rep: dict) -> pd.DataFrame:
 
 def page() -> None:
     cfg = C.cfg()
-    T.header("Step 2 of 3", "Survey results",
+    T.header("Step 2 of 3 · Results", "Survey results",
              "Counts follow Coastal Action's protocol: one subsample every 60 seconds, and a fish counts if it is visible "
-             "within half a second of the subsample point.")
+             "within half a second of the subsample point.", step=2)
     runs = C.list_runs()
     if not runs:
         T.empty_state("No results yet", "Results appear here after you analyse a video.",
@@ -193,9 +197,9 @@ def page() -> None:
     if len(fr):
         c_top, c_bot = timeline(cnt, fr, float(th["V_MIN"]), [s["subsample_t_s"] for s in rep["subsamples"]])
         peak = int(cnt.counted.max()) if len(cnt) else 0
-        st.altair_chart(c_top, width="stretch", height=300,
+        st.altair_chart(c_top, width="stretch", height=300, theme=None,
                         alt=f"Line chart of fish counted per sampled frame over the analysis window; peak {peak} fish.")
-        st.altair_chart(c_bot, width="stretch", height=250,
+        st.altair_chart(c_bot, width="stretch", height=250, theme=None,
                         alt=f"Line chart of visibility (0 to 1) over the analysis window, mean {vis['mean']:.2f}, "
                             f"with the identification threshold {th['V_MIN']:.2f} marked.")
         with st.expander("Show this chart as a table"):

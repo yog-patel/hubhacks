@@ -41,9 +41,9 @@ def page() -> None:
     cfg = C.cfg()
     db = C.db()
     th = cfg["identify"]
-    T.header("Step 3 of 3", "Review queue",
-             "BlueSight shows you what it couldn't identify on its own, most unfamiliar first. Nothing is added to the "
-             "species registry without your decision, and approving updates the registry straight away (no retraining).")
+    T.header("Step 3 of 3 · Review", "Review queue",
+             "Here's everything BlueSight couldn't identify on its own, most unfamiliar first. Nothing joins the species "
+             "registry without your decision, and an approval takes effect straight away (no retraining).", step=3)
 
     run_ids = [r["run_id"] for r in db.q("SELECT run_id FROM runs ORDER BY started_at DESC")]
     if not run_ids:
@@ -60,11 +60,12 @@ def page() -> None:
     done_n = db.q("SELECT COUNT(*) n FROM flags WHERE review_decision IS NOT NULL" + where, args)[0]["n"]
     total = len(pending) + done_n
     pct = 100 * done_n / total if total else 100
-    top_r.html(f'<div class="bs-progress" role="status" aria-live="polite"><b style="color:#0F2230;white-space:nowrap">'
+    top_r.html(f'<div class="bs-progress" role="status" aria-live="polite"><b>'
                f'{done_n} of {total} reviewed</b><div class="bar" aria-hidden="true"><span style="width:{pct:.0f}%"></span></div></div>')
 
     if not C.reviewer():
-        st.warning("Type your name in the sidebar first. It's saved with every decision you make.", icon=":material/badge:")
+        st.warning("Add your name under **Reviewer** in the sidebar to start deciding. It's saved with every decision.",
+                   icon=":material/badge:")
 
     if not pending:
         T.empty_state("All caught up", f"Every item from this analysis has been reviewed ({done_n} decisions).",
@@ -84,12 +85,11 @@ def page() -> None:
     # ------------------------------------------------------------------ the focused card
     with st.container(border=True, key="review_card"):
         h1, h2 = st.columns([4, 1], vertical_alignment="center")
-        h1.html(f'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">{T.badge(f["status"])}'
+        h1.html(f'<div class="bs-item-head">{T.badge(f["status"])}'
                 f'{T.visibility_badge(float(f["visibility"]), float(th["V_MIN"]))}'
-                f'<span class="bs-small">Item {cur + 1} of {len(pending)} waiting</span></div>'
-                f'<h3 style="margin:10px 0 0">{T.esc(title_for(f, top3))}</h3>')
-        h2.html(f'<p class="bs-small" style="text-align:right;margin:0">{T.esc(f["video_file"])}<br>'
-                f'<b style="color:#0F2230">{C.fmt_t(f["start_s"])}–{C.fmt_t(f["end_s"])}</b></p>')
+                f'<span class="bs-small">Item {cur + 1} of {len(pending)}</span></div>'
+                f'<p class="bs-item-title">{T.esc(title_for(f, top3))}</p>')
+        h2.html(f'<p class="bs-when"><b>{C.fmt_t(f["start_s"])}–{C.fmt_t(f["end_s"])}</b>{T.esc(f["video_file"])}</p>')
         st.html(f'<div class="bs-facts"><span>Seen in <b>{f["track_frames"]}</b> sampled frames</span>'
                 f'<span><b>{n_tracks}</b> similar track{"s" if n_tracks != 1 else ""} grouped</span>'
                 f'<span>Item ID <code>{T.esc(f["flag_id"])}</code></span></div>')
@@ -102,21 +102,22 @@ def page() -> None:
             else:
                 st.info("No clip was saved for this item; use the crops below.")
         with right:
-            st.html('<h4 style="margin:0 0 10px">Closest registry matches</h4>' +
+            st.html('<p class="bs-choice">Closest registry matches</p>' +
                     T.similarity_bars(top3, float(th["T_KNOWN"]), float(th["T_UNKNOWN"])))
         if crops:
-            st.html('<h4 style="margin:4px 0 6px">Best views of this fish</h4>')
+            st.html('<p class="bs-choice" style="margin-top:4px">Best views</p>')
             cols = st.container(key="crops").columns(5)
             for n, (c, p) in enumerate(zip(cols, crops), start=1):
                 c.image(str(p), width="stretch", alt=f"View {n} of the flagged animal, cropped from the video")
 
         st.divider()
-        st.html(f'<h4 style="margin:0 0 4px">What is it?</h4><p class="bs-small" style="margin:0 0 8px">Shortcuts: '
-                f'{T.kbd("N")} new species · {T.kbd("E")} existing species · {T.kbd("X")} reject · '
-                f'{T.kbd("J")} skip · {T.kbd("K")} back</p>')
+        st.html(f'<div class="bs-sec"><h3>What is it?</h3><span class="hint">Keyboard: '
+                f'{T.kbd("N")} new · {T.kbd("E")} existing · {T.kbd("X")} reject · '
+                f'{T.kbd("J")} skip · {T.kbd("K")} back</span></div>')
         ok = bool(C.reviewer())
         b1, b2, b3 = st.container(key="decide").columns(3, gap="medium")
         with b1:
+            st.html('<p class="bs-choice">A species not in the registry</p>')
             name = st.text_input("Species name", key=f"n_{f['flag_id']}", placeholder="e.g. European green crab")
             if st.button("New species", key=f"new_{f['flag_id']}", type="primary", icon=":material/add_circle:",
                          width="stretch", shortcut="N", disabled=not ok,
@@ -129,6 +130,7 @@ def page() -> None:
                     st.toast(f"Added {name.strip()} to the registry. Re-run the video to count it.", icon=":material/check_circle:")
                     st.rerun()
         with b2:
+            st.html('<p class="bs-choice">A species we already know</p>')
             if species:
                 ex = st.selectbox("Registry species", species, key=f"e_{f['flag_id']}", format_func=lambda s: s.replace("_", " "),
                                   index=species.index(best["species"]) if best and best["species"] in species else 0)
@@ -143,7 +145,8 @@ def page() -> None:
                 st.toast(f"Confirmed as {ex.replace('_', ' ')}. Reference images updated.", icon=":material/check_circle:")
                 st.rerun()
         with b3:
-            st.html('<p class="bs-small" style="margin:0 0 6px">Sand, the pole, debris or a shadow?</p>')
+            st.html('<p class="bs-choice">Not a fish</p><p class="bs-small" style="margin:0 0 12px">'
+                    'Sand, the survey pole, debris or a shadow? Rejected items are left out of the counts.</p>')
             if st.button("Reject: not a fish", key=f"rj_{f['flag_id']}", icon=":material/block:", width="stretch",
                          shortcut="X", disabled=not ok,
                          help="Exclude it from counts. Similar items are rejected automatically on the next run."):
@@ -162,8 +165,8 @@ def page() -> None:
     # ------------------------------------------------------------------ up next
     rest = [(i, x) for i, x in enumerate(pending) if i != cur][:9]
     if rest:
-        st.subheader(f"Up next ({len(pending) - 1} more)", anchor=False)
-        cols = st.columns(3, gap="medium")
+        st.subheader(f"Up next · {len(pending) - 1} more", anchor=False)
+        cols = st.columns(3, gap="small")
         for j, (i, x) in enumerate(rest):
             t3 = json.loads(x["top3"] or "[]")
             with cols[j % 3], st.container(border=True, key=f"upnext_{j}"):
@@ -173,10 +176,11 @@ def page() -> None:
                              alt=f"Best view of the item seen at {C.fmt_t(x['start_s'])}–{C.fmt_t(x['end_s'])}")
                 bm = (f'best match {t3[0]["similarity"]:.2f} ({T.esc(t3[0]["species"].replace("_", " "))})' if t3
                       else "no registry match")
-                st.html(f'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">{T.badge(x["status"])}'
-                        f'<b style="font-size:16px">{C.fmt_t(x["start_s"])}–{C.fmt_t(x["end_s"])}</b></div>'
-                        f'<p class="bs-small" style="margin:6px 0 0">{bm} · visibility {x["visibility"]:.2f}</p>')
-                if st.button("Review this one", key=f"go_{x['flag_id']}", width="stretch"):
+                st.html(f'<div class="bs-item-head">{T.badge(x["status"])}</div>'
+                        f'<p class="bs-next-meta"><b>{C.fmt_t(x["start_s"])}–{C.fmt_t(x["end_s"])}</b><br>'
+                        f'{bm} · visibility {x["visibility"]:.2f}</p>')
+                if st.button("Open", key=f"go_{x['flag_id']}", width="stretch", type="tertiary",
+                             icon=":material/arrow_outward:"):
                     st.session_state["review_cursor"] = i
                     st.rerun()
     _reviewed_table(where, args)

@@ -22,7 +22,8 @@ from ui import common as C  # noqa: E402
 from ui import page_analyze, page_privacy, page_registry, page_results, page_review, theme  # noqa: E402
 
 theme.inject()
-st.logo(str(ROOT / "app" / "assets" / "logo.svg"), size="large", icon_image=str(ROOT / "app" / "assets" / "icon.svg"))
+st.logo(str(ROOT / "app" / "assets" / ("logo-dark.svg" if theme.is_dark() else "logo.svg")), size="large",
+        icon_image=str(ROOT / "app" / "assets" / "icon.svg"))
 C.base_config()
 
 pending = C.pending_count()

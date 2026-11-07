@@ -111,26 +111,28 @@ def offline_mode() -> bool:
 
 
 def local_badge(compact: bool = False) -> str:
-    """'Running locally on <device>' badge; amber if offline mode is somehow off."""
-    dev = {"mps": "Apple GPU (MPS)", "cuda": "NVIDIA GPU (CUDA)", "cpu": "CPU"}.get(device_name(), device_name())
+    """'Running locally on <device>' pill; amber if offline mode is somehow off."""
+    dev = {"mps": "Apple GPU", "cuda": "NVIDIA GPU", "cpu": "CPU"}.get(device_name(), device_name())
+    block = " block" if compact else ""
     if offline_mode():
-        body = f"<span><b>Running locally on {theme.esc(dev)}</b>" + ("" if compact else
-               "<br>Offline mode on · no cloud AI · video stays on this computer") + "</span>"
-        return f'<div class="bs-local" role="status"><span class="dot" aria-hidden="true"></span>{body}</div>'
-    return (f'<div class="bs-local warn" role="status"><span class="dot" aria-hidden="true"></span><span><b>Running on '
-            f'{theme.esc(dev)}</b><br>Offline mode is off: models could contact Hugging Face. See Model &amp; privacy.</span></div>')
+        tail = "" if compact else " · offline · video never leaves this computer"
+        return (f'<div class="bs-local{block}" role="status"><span class="dot" aria-hidden="true"></span>'
+                f'<span><b>Running locally on {theme.esc(dev)}</b>{tail}</span></div>')
+    return (f'<div class="bs-local warn{block}" role="status"><span class="dot" aria-hidden="true"></span><span><b>Running on '
+            f'{theme.esc(dev)}</b> · offline mode is off, so models could contact Hugging Face. See Model &amp; privacy.</span></div>')
 
 
 def sidebar() -> None:
-    """Brand, reviewer name, data source and the local-device badge."""
+    """Reviewer name, data source, the local-device indicator and a theme hint."""
     qp = st.query_params
     if "reviewer" not in st.session_state:
         st.session_state["reviewer"] = qp.get("reviewer", "")
     with st.sidebar:
-        st.html(local_badge(compact=True))
-        st.text_input("Your name (recorded with each review)", key="reviewer", placeholder="e.g. A. Biologist")
-        n = pending_count()
-        st.html(f'<p class="bs-small" style="margin:4px 0 0">{n} item{"s" if n != 1 else ""} waiting for review</p>')
+        st.text_input("Reviewer", key="reviewer", placeholder="Your name",
+                      help="Saved with every decision you make in the review queue.")
         st.radio("Data", ["Survey results", "Mock data"], key="data_source", horizontal=True,
                  help="Mock data is a small fake dataset for trying the app without running the models "
                       "(create it with scripts/make_mock_data.py).")
+        st.html(local_badge(compact=True))
+        st.html('<p class="bs-side-foot">Light or dark: <b>⋮ menu → Settings</b> (top right). '
+                'Follows your computer by default.</p>')

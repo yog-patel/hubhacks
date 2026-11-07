@@ -27,7 +27,8 @@ def page() -> None:
     st.html(f'<div class="bs-facts"><span><b>{len(rows)}</b> species</span>'
             f'<span><b>{sum(r["n_images"] or 0 for r in rows)}</b> reference images</span>'
             f'<span><b>{n_new}</b> added through review</span></div>')
-    q = st.text_input("Find a species", placeholder="Type part of a name", key="reg_q", label_visibility="collapsed")
+    q = st.text_input("Find a species", placeholder="Search species…", key="reg_q", label_visibility="collapsed",
+                      icon=":material/search:")
     if q.strip():
         rows = [r for r in rows if q.strip().lower() in (r["display_name"] or r["name"]).lower()]
         if not rows:
@@ -43,15 +44,14 @@ def page() -> None:
             if imgs:
                 st.image(imgs[0], width="stretch", alt=f"Reference image of {label}")
             else:
-                st.html('<div style="aspect-ratio:4/3;background:#EAF1F5;border-radius:8px;display:flex;align-items:center;'
-                        'justify-content:center;color:#566B7C;font-size:14px">No image on this computer</div>')
+                st.html('<div class="bs-noimg">No image on this computer</div>')
             name = (r["display_name"] or r["name"]).replace("_", " ")
-            badges = (T.plain_badge("New · added in review", "#1B6B45", "#E6F4EC", "★") if is_new else
-                      T.plain_badge("From labelled photos", "#0B5C7A", "#E3EFF5"))
+            badges = (T.plain_badge("Added in review", "ok", "★") if is_new else
+                      T.plain_badge("From labelled photos", "info"))
             if not r["active"]:
-                badges += " " + T.plain_badge("Inactive", "#4F5B66", "#EDF0F2")
-            st.html(f'<div class="bs-sp-head"><p class="bs-sp-name">{T.esc(name[:1].upper() + name[1:])}</p></div>'
-                    f'<div style="margin-top:6px">{badges}</div>'
+                badges += " " + T.plain_badge("Inactive", "muted")
+            st.html(f'<p class="bs-sp-name">{T.esc(name[:1].upper() + name[1:])}</p>'
+                    f'<div>{badges}</div>'
                     f'<dl class="bs-meta"><dt>Added</dt><dd>{T.esc((r["date_added"] or "")[:10])}</dd>'
                     f'<dt>Approved by</dt><dd>{T.esc(r["approved_by"] or "—")}</dd>'
                     f'<dt>Reference images</dt><dd>{r["n_images"] or 0}</dd>'

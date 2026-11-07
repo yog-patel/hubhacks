@@ -44,10 +44,10 @@ def stage_of(frac: float, msg: str) -> tuple[set[int], set[int]]:
 
 def page() -> None:
     cfg = C.cfg()
-    T.header("Step 1 of 3", "Analyze a survey video",
-             "BlueSight enhances the footage, finds and follows each fish, compares it with the species registry and "
-             "counts it using Coastal Action's protocol. Anything it is unsure about goes to your review queue.")
-    st.html(C.local_badge())
+    T.header("Step 1 of 3 · Analyze", "Analyze a survey video",
+             "Choose a video, check how clear the water is, then run it. BlueSight finds and follows each fish, matches it "
+             "against the species registry and counts it with Coastal Action's protocol. Anything it's unsure about "
+             "goes to your review queue.", step=1)
 
     vdir = path(cfg, "videos_dir")
     vids = sorted(p for p in vdir.glob("*") if p.suffix.lower() in VIDEO_EXTS) if vdir.exists() else []
@@ -55,7 +55,7 @@ def page() -> None:
     vids += sorted(p for p in up_dir.glob("*") if p.suffix.lower() in VIDEO_EXTS) if up_dir.exists() else []
 
     with st.container(border=True):
-        st.subheader("Choose the footage", anchor=False)
+        T.section("Choose the footage", "1")
         up = st.file_uploader("Drag and drop a survey video here, or browse", type=[e.strip(".") for e in VIDEO_EXTS],
                               help="MP4, MOV, AVI, MKV or M4V. The file is copied to outputs/uploads/ on this computer; "
                                    "it is never sent anywhere.")
@@ -82,13 +82,13 @@ def page() -> None:
             st.error(f"Can't open {video.name}. The file may be damaged or in a format OpenCV can't read. "
                      "Try re-exporting it as H.264 or HEVC MP4.")
             return
-        st.html(f'<div class="bs-facts"><span>Length <b>{C.fmt_t(info.duration_s)}</b></span>'
+        st.html(f'<div class="bs-facts" style="margin-bottom:0"><span>Length <b>{C.fmt_t(info.duration_s)}</b></span>'
                 f'<span>Resolution <b>{info.width}×{info.height}</b></span><span>Frame rate <b>{info.fps:.2f} fps</b></span>'
                 f'<span>Analysed at <b>{cfg["sampling"]["fps"]:g} frames per second</b></span></div>')
 
     # ------------------------------------------------------------------ enhancement preview
     with st.container(border=True):
-        st.subheader("Check the water clarity", anchor=False)
+        T.section("Check the water clarity", "2", "optional")
         st.caption("Pick a moment in the video. BlueSight corrects the green cast and boosts local contrast before looking "
                    "for fish, and scores visibility from 0 (opaque) to 1 (clear).")
         vmin = float(cfg["identify"]["V_MIN"])
@@ -103,10 +103,13 @@ def page() -> None:
             with left:
                 before_after(small, enh, "Original", "Enhanced")
             with right:
-                st.html(f'<p class="bs-small" style="margin:0">Moment {C.fmt_t(t)}</p>'
-                        f'<div style="font-size:44px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums">{v:.2f}'
-                        f'<span style="font-size:18px;color:#3E5466;font-weight:600"> / 1 visibility</span></div>')
-                st.progress(min(1.0, v))
+                _, tone, _ = T.visibility_word(v, vmin)
+                fill = {"ok": "var(--ok-fg)", "warn": "var(--warn-fg)"}.get(tone, "var(--mute-fg)")
+                st.html(f'<div class="bs-readout"><p class="lbl">Visibility at {C.fmt_t(t)}</p>'
+                        f'<div class="num">{v:.2f}<span> / 1</span></div></div>'
+                        f'<div class="bs-meter" role="img" aria-label="visibility {v:.2f} of 1, threshold {vmin:.2f}">'
+                        f'<div class="fill" style="width:{min(1.0, v) * 100:.0f}%;background:{fill}"></div>'
+                        f'<div class="mark" style="left:{vmin * 100:.0f}%" title="identification threshold {vmin:.2f}"></div></div>')
                 if v < vmin:
                     st.html(T.visibility_badge(v, vmin) +
                             f'<p style="margin-top:10px">Below the identification threshold ({vmin:.2f}). Fish seen here are '
@@ -117,7 +120,7 @@ def page() -> None:
 
     # ------------------------------------------------------------------ run
     with st.container(border=True):
-        st.subheader("Run the analysis", anchor=False)
+        T.section("Run the analysis", "3")
         p = cfg["protocol"]
         mode = st.radio("Which part of the video?",
                         ["Protocol window", "Custom window", "Whole video"], horizontal=True, key="window_mode",
@@ -137,7 +140,9 @@ def page() -> None:
                                      "Re-detecting a 15-minute window takes about 15–20 minutes on an Apple M5.")
         steps = st.empty()
         steps.html(T.stepper())
-        go = st.button("Analyze video", type="primary", icon=":material/play_arrow:", key="run_btn")
+        b_col, n_col = st.columns([1, 3], vertical_alignment="center")
+        go = b_col.button("Analyze video", type="primary", icon=":material/play_arrow:", key="run_btn")
+        n_col.html(C.local_badge())
         status = st.empty()
         if go:
             from bluesight.pipeline import run_video

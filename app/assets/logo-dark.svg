@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="48" viewBox="0 0 240 48" role="img" aria-label="BlueSight AI">
+  <circle cx="24" cy="24" r="20" fill="#1F7C96"/>
+  <path d="M10 27c4-4 8-4 12 0s8 4 12 0 6-3 6-3" fill="none" stroke="#9ED3E6" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="24" cy="19" rx="7" ry="4.2" fill="#FFFFFF"/>
+  <circle cx="26.5" cy="18.4" r="1.4" fill="#1F7C96"/>
+  <path d="M17 19l-4-3v6z" fill="#FFFFFF"/>
+  <text x="54" y="31" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif" font-size="22" font-weight="700" fill="#E3EBEF">BlueSight <tspan fill="#5BB8D3">AI</tspan></text>
+</svg>

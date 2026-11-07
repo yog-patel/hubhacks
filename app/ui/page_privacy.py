@@ -38,15 +38,13 @@ def page() -> None:
     if last and "external_connection_attempts" in net:
         n = int(net["external_connection_attempts"])
         ok = n == 0
-        icon, fg, bg, bd = ("✓", "#14522F", "#E6F4EC", "#9CCBB1") if ok else ("!", "#8C1D13", "#FDECEA", "#E8A39B")
+        icon, tone = ("✓", "ok") if ok else ("!", "bad")
         words = ("0 external network calls during the last run" if ok else
                  f"{n} external network call{'s' if n != 1 else ''} attempted during the last run (all blocked)")
-        st.html(f'<div role="status" style="display:flex;gap:16px;align-items:center;padding:20px 24px;border-radius:12px;'
-                f'background:{bg};border:1px solid {bd};color:{fg};margin-bottom:8px">'
-                f'<span aria-hidden="true" style="font-size:30px;font-weight:800;width:52px;height:52px;border-radius:50%;'
-                f'display:flex;align-items:center;justify-content:center;background:{fg};color:#fff;flex:none">{icon}</span>'
-                f'<span><span style="font-size:24px;font-weight:700;display:block">{words}</span>'
-                f'<span style="font-size:15px">Run <code>{T.esc(last["run_id"])}</code> · {T.esc(last["generated_at"].replace("T", " "))} · '
+        st.html(f'<div role="status" class="bs-verdict t-{tone}">'
+                f'<span aria-hidden="true" class="ico"><span>{icon}</span></span>'
+                f'<span><span class="big">{words}</span>'
+                f'<span class="sub">Run <code>{T.esc(last["run_id"])}</code> · {T.esc(last["generated_at"].replace("T", " "))} · '
                 f'network guard mode “{T.esc(net.get("mode", "?"))}”, local connections allowed: {net.get("local_connections", 0)}</span></span></div>')
     else:
         st.info("No run has recorded network data yet. Analyse a video and this indicator fills in from the pipeline's network guard.")
@@ -95,7 +93,7 @@ def page() -> None:
 
     # ------------------------------------------------------------------ how it works
     st.subheader("How it stays local", anchor=False)
-    st.html("""<ol style="margin:0;padding-left:22px;line-height:1.7">
+    st.html("""<ol class="bs-how">
 <li>The video is read straight from this computer's disk with OpenCV. It is never uploaded.</li>
 <li>The AI models (BioCLIP for species, the motion detector for fish) are files in <code>models/</code>, downloaded once.
     BlueSight switches Hugging Face to offline mode before any model library loads, so they can't check for updates.</li>

@@ -12,27 +12,45 @@ maxUploadSize = 8192              # MB; 4K survey videos are large
 runOnSave = false
 
 [client]
-toolbarMode = "minimal"
+toolbarMode = "viewer"            # keeps the ⋮ menu, where Settings → theme (Light / Dark / System) lives
 showErrorDetails = "full"         # tracebacks stay visible to the biologist (they're on this computer)
 showErrorLinks = false            # no "Ask Google" / "Ask ChatGPT" buttons on errors (they'd send error text to a hosted service)
 
 [global]
 showWarningOnDirectExecution = false
 
-# One palette, one type scale (see app/ui/theme.py and DECISIONS.md D16).
+# Light and dark themes (see app/ui/theme.py and DECISIONS.md D24). With both defined, the app follows the
+# computer's light/dark setting, and the reader can override it in ⋮ → Settings. All text >= 4.5:1.
 [theme]
-base = "light"
-primaryColor = "#0B5C7A"          # deep sea teal (7.4:1 on white)
-backgroundColor = "#F4F7F9"       # sea mist
-secondaryBackgroundColor = "#EAF1F5"
-textColor = "#0F2230"             # 16.3:1 on white
 font = "sans-serif"
-baseRadius = "0.5rem"
-borderColor = "#C9D6DF"
-showWidgetBorder = true
-linkColor = "#0B5C7A"
 codeFont = "monospace"
+baseRadius = "0.625rem"
+buttonRadius = "0.5rem"
+showWidgetBorder = true
+showSidebarBorder = true
 
-[theme.sidebar]
-backgroundColor = "#E6EEF3"
+[theme.light]
+primaryColor = "#0A6680"          # deep teal (6.5:1 with white text)
+backgroundColor = "#F5F7F8"
+secondaryBackgroundColor = "#EDF2F5"
+textColor = "#0D1B24"
+borderColor = "#D5DEE3"
+linkColor = "#0A6680"
+dataframeHeaderBackgroundColor = "#EDF2F5"
+
+[theme.light.sidebar]
+backgroundColor = "#EEF2F4"
 secondaryBackgroundColor = "#FFFFFF"
+
+[theme.dark]
+primaryColor = "#1F7C96"          # 4.8:1 with white button text; text accents use the lighter #5BB8D3
+backgroundColor = "#0B141A"       # deep water
+secondaryBackgroundColor = "#17242E"
+textColor = "#E3EBEF"
+borderColor = "#25343F"
+linkColor = "#6CC4DD"
+dataframeHeaderBackgroundColor = "#17242E"
+
+[theme.dark.sidebar]
+backgroundColor = "#0E1920"
+secondaryBackgroundColor = "#17242E"
