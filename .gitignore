@@ -11,6 +11,7 @@ outputs/
 
 # original resource media (read-only originals; never committed)
 HubHacks Resources/
+HubHacks Resources
 data/raw_photos/
 data/videos/
 data/reference_images/

@@ -1,0 +1,37 @@
+# BlueSight AI - Streamlit settings.
+# Privacy: no usage statistics are sent, and the app only listens on this computer.
+
+[browser]
+gatherUsageStats = false          # Streamlit collects anonymous usage stats by default; turned off
+serverAddress = "localhost"
+
+[server]
+address = "localhost"             # only reachable from this machine (not the local network)
+headless = true
+maxUploadSize = 8192              # MB; 4K survey videos are large
+runOnSave = false
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = true
+
+[global]
+showWarningOnDirectExecution = false
+
+# One palette, one type scale (see app/ui/theme.py and DECISIONS.md D16).
+[theme]
+base = "light"
+primaryColor = "#0B5C7A"          # deep sea teal (7.4:1 on white)
+backgroundColor = "#F4F7F9"       # sea mist
+secondaryBackgroundColor = "#EAF1F5"
+textColor = "#0F2230"             # 16.3:1 on white
+font = "sans-serif"
+baseRadius = "0.5rem"
+borderColor = "#C9D6DF"
+showWidgetBorder = true
+linkColor = "#0B5C7A"
+codeFont = "monospace"
+
+[theme.sidebar]
+backgroundColor = "#E6EEF3"
+secondaryBackgroundColor = "#FFFFFF"
