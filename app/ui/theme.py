@@ -60,11 +60,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, [role="radio"]:focus
 .stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] button{
   min-height:44px; font-weight:600; border-radius:var(--r-ctl); }
 .st-key-decide .stButton button{ min-height:56px; font-size:17px; }
+/* keyboard-shortcut hints inside buttons: Streamlit draws them at 60% opacity; full opacity keeps 4.5:1 */
+button kbd[aria-label^="Shortcut"]{ opacity:1 !important; font-weight:700; border:1px solid currentColor; border-radius:4px;
+  padding:0 5px; margin-left:8px; font-size:13px; line-height:1.5; background:transparent; }
 /* bordered containers become cards */
 [data-testid="stVerticalBlockBorderWrapper"]{ border-radius:var(--r-card) !important; background:var(--card); }
 /* sidebar */
 [data-testid="stSidebar"]{ border-right:1px solid var(--border); }
-[data-testid="stSidebarNav"] a span{ font-size:16px; }
+[data-testid="stSidebarNav"] a span{ font-size:16px; opacity:1 !important; color:var(--ink) !important; }
+[data-testid="stSidebarNav"] a, [data-testid="stSidebarNavSeparator"], [data-testid="stNavSectionHeader"]{ opacity:1 !important; }
+[data-testid="stNavSectionHeader"], [data-testid="stNavSectionHeader"] *{ color:var(--ink-2) !important; opacity:1 !important; }
 /* page header */
 .bs-eyebrow{ font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--primary); margin:0 0 var(--s1); }
 .bs-lede{ font-size:17px; color:var(--ink-2); margin:0 0 var(--s5); max-width:72ch; }

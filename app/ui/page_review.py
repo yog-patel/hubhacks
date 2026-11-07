@@ -107,8 +107,8 @@ def page() -> None:
         if crops:
             st.html('<h4 style="margin:4px 0 6px">Best views of this fish</h4>')
             cols = st.container(key="crops").columns(5)
-            for c, p in zip(cols, crops):
-                c.image(str(p), width="stretch")
+            for n, (c, p) in enumerate(zip(cols, crops), start=1):
+                c.image(str(p), width="stretch", alt=f"View {n} of the flagged animal, cropped from the video")
 
         st.divider()
         st.html(f'<h4 style="margin:0 0 4px">What is it?</h4><p class="bs-small" style="margin:0 0 8px">Shortcuts: '
@@ -169,7 +169,8 @@ def page() -> None:
             with cols[j % 3], st.container(border=True, key=f"upnext_{j}"):
                 cps = sorted(Path(x["folder"]).glob("crop_*.jpg"))
                 if cps:
-                    st.image(str(cps[0]), width="stretch")
+                    st.image(str(cps[0]), width="stretch",
+                             alt=f"Best view of the item seen at {C.fmt_t(x['start_s'])}–{C.fmt_t(x['end_s'])}")
                 bm = (f'best match {t3[0]["similarity"]:.2f} ({T.esc(t3[0]["species"].replace("_", " "))})' if t3
                       else "no registry match")
                 st.html(f'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">{T.badge(x["status"])}'

@@ -593,11 +593,18 @@ def exp_fps() -> None:
         m["frames_per_video_minute"] = fps * 60
         log_result({"id": "E8", "variant": f"{fps:g} fps", "params": {"fps": fps}, "metrics": m,
                     "kept": "baseline" if fps == 2.0 else None})
+    # same persistence in SECONDS as 2 fps x 3 frames (1.5 s): 1 fps x 2 frames = 2 s is the closest fair setting
+    c = copy.deepcopy(cfg)
+    c["sampling"]["fps"] = 1.0
+    c["identify"]["MIN_FRAMES"] = 2
+    m = window_eval(c, 1.0)
+    m["frames_per_video_minute"] = 60
+    log_result({"id": "E8", "variant": "1 fps, MIN_FRAMES=2 (persistence 2 s)", "params": {"fps": 1.0, "MIN_FRAMES": 2}, "metrics": m})
 
 
-if __name__ == "__main__":
+def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("what", choices=["decode", "enhance", "detector", "tracker", "crops", "prototypes", "fps", "owl"])
+    ap.add_argument("what", choices=["decode", "enhance", "detector", "tracker", "crops", "prototypes", "fps", "owl", "video_id", "combos"])
     ap.add_argument("--owl-large", action="store_true")
     ap.add_argument("--skip-owl", action="store_true")
     a = ap.parse_args()
@@ -605,4 +612,110 @@ if __name__ == "__main__":
         decode()
     {"decode": decode, "enhance": exp_enhance, "detector": lambda: exp_detector(a.skip_owl, a.owl_large),
      "tracker": exp_tracker, "crops": exp_crops, "prototypes": exp_prototypes, "fps": exp_fps,
-     "owl": lambda: owl_frame(load_config(), a.owl_large)}[a.what]()
+     "owl": lambda: owl_frame(load_config(), a.owl_large), "video_id": lambda: exp_video_id(), "combos": lambda: exp_combos()}[a.what]()
+
+
+# ----------------------------------------------------------------------------- video-level identification check
+def gt_track_labels(cdir: Path) -> tuple[set, set]:
+    """Tracks whose detection at the 14:01 sampled frames (840.5-841.5 s) matches a tally point = fish; others = not."""
+    from scipy.optimize import linear_sum_assignment
+
+    dets = pd.read_csv(cdir / "detections.csv")
+    pts = gt_points()
+    fish, other = set(), set()
+    for t in sorted(dets.t_s.unique()):
+        if abs(t - 841.31) > 0.5:
+            continue
+        fr = dets[(dets.t_s == t) & (dets.track_id >= 0)]
+        if not len(fr):
+            continue
+        cen = np.c_[(fr.x1 + fr.x2) / 2, (fr.y1 + fr.y2) / 2]
+        D = np.linalg.norm(cen[:, None] - pts[None], axis=2)
+        ri, ci = linear_sum_assignment(D)
+        f = {int(fr.track_id.iloc[r]) for r, c in zip(ri, ci) if D[r, c] < 40}
+        fish |= f
+        other |= set(int(x) for x in fr.track_id) - f
+    return fish, other - fish
+
+
+def exp_video_id() -> None:
+    """Prototype variants and crop enhancement checked on VIDEO tracks of the tuning half (not screenshot crops)."""
+    from bluesight.db import DB, from_blob
+    from bluesight.embed import get_embedder
+    from bluesight.enhance import enhance_frame
+    from bluesight.identify import mean_embedding
+    from bluesight.registry import compute_prototypes
+
+    cfg = load_config()
+    cdir = Path(sorted(glob.glob(str(ROOT / TUNE_CACHE_GLOB)))[0])
+    db = DB(path(cfg, "db_path"))
+    ref = np.stack([from_blob(r["embedding"]) for r in db.q("SELECT embedding FROM species_images WHERE species='small_schooling_fish'")])
+    z = np.load(next(cdir.glob("emb_*.npz")))
+    embs = {int(k): z[k] for k in z.files}
+    tr = pd.DataFrame(db.q("SELECT track_id, visibility, n_frames, mean_area FROM tracks WHERE run_id='T1_STAT2_411__60-1073s'"))
+    tr = tr[tr.track_id.isin(embs.keys())]
+    fish, other = gt_track_labels(cdir)
+    fish, other = fish & set(embs), other & set(embs)
+    th = cfg["identify"]
+    clear = tr[(tr.visibility >= th["V_MIN"]) & (tr.n_frames >= th["MIN_FRAMES"]) & (tr.mean_area >= th["MIN_AREA"])].track_id.tolist()
+
+    def report(name, sim_fn, extra=None):
+        s = {t: sim_fn(embs[t]) for t in embs}
+        fs, os_ = np.array([s[t] for t in fish]), np.array([s[t] for t in other])
+        cs = np.array([s[t] for t in clear])
+        m = {"gt_fish_tracks": len(fs), "gt_nonfish_tracks": len(os_), "auc_gt_fish_vs_nonfish": round(auc(fs, os_), 3),
+             "mean_sim_fish": round(float(fs.mean()), 3), "mean_sim_nonfish": round(float(os_.mean()), 3),
+             "clear_tracks": len(cs), "clear_known_pct_at_T_KNOWN": round(100 * float((cs >= th["T_KNOWN"]).mean()), 1),
+             "clear_unfamiliar_pct_at_T_UNKNOWN": round(100 * float((cs < th["T_UNKNOWN"]).mean()), 1)}
+        m.update(extra or {})
+        log_result({"id": "E6-video", "variant": name, "params": {}, "metrics": m})
+
+    for k in (1, 2, 3, 4, 6):
+        P = compute_prototypes(ref, k, 8, 5)
+        report(f"{len(P)} prototype(s) (k-means k={k})", lambda e, P=P: float((P @ e).max()))
+    # crop enhancement on video: only the GT-labelled tracks + references need re-embedding (cheap)
+    E = get_embedder(cfg)
+    crops = pickle.loads((cdir / "crops.pkl").read_bytes())
+    refs = sorted(glob.glob(str(path(cfg, "reference_dir") / "small_schooling_fish" / "*")))
+    for name, tf in (("raw crops (as v1)", lambda im: im), ("enhanced crops", lambda im: enhance_frame(im, cfg["enhance"]))):
+        P = mean_embedding(E.embed_images([tf(cv2.imread(f)) for f in refs]))
+        vals = {}
+        for t in fish | other:
+            ims = [tf(cv2.imdecode(np.frombuffer(j, np.uint8), cv2.IMREAD_COLOR)) for j, _ in crops.get(t, [])]
+            if ims:
+                vals[t] = float(mean_embedding(E.embed_images(ims)) @ P)
+        fs, os_ = np.array([vals[t] for t in fish if t in vals]), np.array([vals[t] for t in other if t in vals])
+        log_result({"id": "E1-ID-video", "variant": name, "params": {},
+                    "metrics": {"gt_fish_tracks": len(fs), "gt_nonfish_tracks": len(os_), "auc_gt_fish_vs_nonfish": round(auc(fs, os_), 3),
+                                "mean_sim_fish": round(float(fs.mean()), 3), "mean_sim_nonfish": round(float(os_.mean()), 3)}})
+
+
+def exp_combos() -> None:
+    """Combinations of the best single changes (E1 + E2 + E4), on the same tuning-half metrics."""
+    cfg = load_config()
+    combos = {
+        "CLAHE 2/4": {"enhance": {"clahe_clip": 2.0, "clahe_grid": 4}},
+        "CLAHE 2/4 + min_area 220": {"enhance": {"clahe_clip": 2.0, "clahe_grid": 4}, "motion": {"min_area": 220}},
+        "CLAHE 2/4 + z 2.75": {"enhance": {"clahe_clip": 2.0, "clahe_grid": 4}, "motion": {"z_thresh": 2.75}},
+        "CLAHE 2/4 + z 2.25": {"enhance": {"clahe_clip": 2.0, "clahe_grid": 4}, "motion": {"z_thresh": 2.25}},
+        "CLAHE 2/4 + min_area 220 + elong 1.6": {"enhance": {"clahe_clip": 2.0, "clahe_grid": 4},
+                                                 "motion": {"min_area": 220, "min_elongation": 1.6}},
+        "CLAHE 2/4 + tracker assoc 200, expand 2.5": {"enhance": {"clahe_clip": 2.0, "clahe_grid": 4},
+                                                       "tracker": {"min_assoc_size": 200, "box_expand": 2.5}},
+        "CLAHE 2/4 + min_area 220 + tracker assoc 200, expand 2.5": {
+            "enhance": {"clahe_clip": 2.0, "clahe_grid": 4}, "motion": {"min_area": 220},
+            "tracker": {"min_assoc_size": 200, "box_expand": 2.5}},
+        "CLAHE 2.5 grid 4": {"enhance": {"clahe_clip": 2.5, "clahe_grid": 4}},
+        "CLAHE 1.5 grid 4": {"enhance": {"clahe_clip": 1.5, "clahe_grid": 4}},
+        "CLAHE 2 grid 6": {"enhance": {"clahe_clip": 2.0, "clahe_grid": 6}},
+    }
+    for name, ch in combos.items():
+        c = copy.deepcopy(cfg)
+        c["enhance"].update(ch.get("enhance", {}))
+        c["detector"]["motion"].update(ch.get("motion", {}))
+        c["tracker"].update(ch.get("tracker", {}))
+        log_result({"id": "E2-combo", "variant": name, "params": ch, "metrics": both(c)})
+
+
+if __name__ == "__main__":
+    main()

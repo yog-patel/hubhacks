@@ -39,8 +39,9 @@ def page() -> None:
         imgs = [p for p in imgs if Path(p).exists()]
         is_new = r["source"] == "approved"
         with cols[i % 3], st.container(border=True, key=f"spcard_{i}"):
+            label = (r["display_name"] or r["name"]).replace("_", " ")
             if imgs:
-                st.image(imgs[0], width="stretch")
+                st.image(imgs[0], width="stretch", alt=f"Reference image of {label}")
             else:
                 st.html('<div style="aspect-ratio:4/3;background:#EAF1F5;border-radius:8px;display:flex;align-items:center;'
                         'justify-content:center;color:#566B7C;font-size:14px">No image on this computer</div>')
@@ -56,7 +57,7 @@ def page() -> None:
                     f'<dt>Reference images</dt><dd>{r["n_images"] or 0}</dd>'
                     f'<dt>Registry key</dt><dd><code>{T.esc(r["name"])}</code></dd></dl>')
             if len(imgs) > 1:
-                st.image(imgs[1:7], width=64)
+                st.image(imgs[1:7], width=64, alt=[f"More reference images of {label}"] * len(imgs[1:7]))
     if held:
         st.caption("Held out on purpose, to test that unfamiliar species get flagged: "
                    + ", ".join(h.replace("_", " ").capitalize() for h in held)

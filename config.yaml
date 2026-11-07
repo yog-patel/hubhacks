@@ -50,8 +50,8 @@ protocol:
   count_window_s: 1.0       # "one second = one analysed frame" (+/-0.5 s tolerance)
 
 enhance:
-  clahe_clip: 3.0
-  clahe_grid: 8
+  clahe_clip: 2.0           # v1: 3.0. E1: clip 2 / grid 4 gave the best detection F1 (EVALUATION.md)
+  clahe_grid: 4             # v1: 8
   white_balance: true       # gray-world colour correction for green/brown water
   # visibility score = weighted mean of three 0..1 cues, each mapped linearly between lo and hi
   contrast_range: [0.04, 0.10]    # RMS contrast of luminance (0..1); calibrated on T1-STAT2 411
@@ -78,10 +78,10 @@ detector:
 
 tracker:
   track_activation_threshold: 0.2
-  lost_track_buffer: 4      # sampled frames
+  lost_track_buffer: 4      # NOTE: supervision scales this by frame_rate/30, so at 2 fps values < 15 mean 0 frames (E4)
   minimum_matching_threshold: 0.9
-  box_expand: 3.0           # boxes are inflated for association: small fish move far between samples
-  min_assoc_size: 120       # ...and to at least this many px per side (at process_width)
+  box_expand: 2.5           # v1: 3.0. Boxes are inflated for association: small fish move far between samples (E4)
+  min_assoc_size: 200       # v1: 120. ...and to at least this many px per side; cuts ID fragmentation 7.5x (E4)
 
 embedder:
   name: bioclip             # bioclip | dinov2

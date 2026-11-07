@@ -110,3 +110,13 @@ Streamlit was kept. A FastAPI + web frontend would mean re-implementing upload, 
 The pipeline (`src/bluesight/`) is untouched by the UI work; the UI lives in `app/ui/`.
 
 Review-queue interaction: **one focused card at a time** (plus a compact "Up next" grid) instead of v1's wall of 28+ cards with 28 videos. This gives a progress counter ("3 of 30 reviewed") and a fast keyboard flow: `N` new species, `E` existing, `X` reject, `J` skip, `K` back. `R` would be the natural key for Reject, but Streamlit reserves `R` (rerun) and `C`; `X` matches the ✕ icon. Shortcuts are ignored while typing in the species-name box (tested with Playwright).
+
+## D19. Which video frame the 14:01 tally points belong to
+The biologists' 14:01 screenshot pins the annotated instant only to the second. Fish move more than their own length in half a second, so scoring detections against the 36 points on the wrong frame gives meaningless F1 (scores on neighbouring frames 840.5–842.0 s ranged from 0.25 to 0.63).
+* **Detector-independent alignment:** the screenshot's high-pass detail was correlated with every video frame from 840.0 to 842.2 s. The peak is at **frame 25214 (841.31 s)**, with the neighbouring frames 841.24–841.37 s next.
+* v1's motion detector, scored frame by frame, also peaks at 841.33 s. The two agree, though the correlation margin is small (0.498 vs a median of 0.487).
+* **Phase-2 detection F1** is therefore the mean over the 5 exact frames 25212–25216 (±67 ms), each with an exact ±k-second background. The averaging reduces per-frame noise. v1's single-frame score at 841.00 s (F1 0.38) is kept as the BASELINE number for continuity.
+* The **count at 14:01** keeps the protocol rule (best sampled frame within ±0.5 s of 841 s, persistent tracks only), so it measures exactly what a survey run reports.
+
+## D20. Motion-detector background size alternates (known v1 inconsistency, left as is)
+Frame times are rounded frame indices, so "8 s later" is either 7.975 or 8.008 s. With v1's 1e-6 tolerance the +8 s frame is dropped for about half of the frames. The background stack then alternates between 16 and 17 frames, and `torch.median` takes the lower middle value for even sizes. `detector.motion.ctx_tol_s` (new; 0.26 keeps the stack size constant) was measured (EVALUATION E2): identical frame-level F1, and the count at 14:01 moved from 18 to 16 (further from the manual 36). That isn't a measurable improvement, so the default stays at v1 behaviour (option off), as the "keep only what helps" rule requires.

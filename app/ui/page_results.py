@@ -1,6 +1,7 @@
 """Results: headline cards, species table, before/after frame, timeline, annotated video, downloads."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import altair as alt
@@ -246,7 +247,7 @@ def page() -> None:
     with st.expander("Subsample table (protocol spreadsheet layout)"):
         st.dataframe(pd.DataFrame(rep["subsamples"]), hide_index=True, width="stretch")
     with st.expander("Run details: models, thresholds, timings"):
-        st.json({k: rep.get(k) for k in ("ran_on", "offline", "network", "energy", "runtime_s", "timings_s",
+        st.code(json.dumps({k: rep.get(k) for k in ("ran_on", "offline", "network", "energy", "runtime_s", "timings_s",
                                           "full_processing_s_per_video_min", "models", "thresholds", "sample_fps",
                                           "n_sampled_frames", "n_tracks", "track_status_counts", "registry_species",
-                                          "cached_detection")})
+                                          "cached_detection")}, indent=2, default=str), language=None)

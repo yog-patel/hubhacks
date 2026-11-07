@@ -246,6 +246,11 @@ def main() -> None:
     for name, (s, e) in (("tuning", (t0, t1)), ("demo", (d0, d1))):
         reps[name] = run_video(VIDEO, cfg, s, e - s, make_evidence=(name == "demo"))
     det_cmp = [] if a.skip_detectors else compare_detectors(cfg)
+    det_file = EVAL / "final_detectors.json"
+    if det_cmp:
+        det_file.write_text(json.dumps(det_cmp, indent=1))
+    elif det_file.exists():
+        det_cmp = json.loads(det_file.read_text())  # last measured comparison (same config), so the table stays
     gt = pd.read_csv(path(cfg, "ground_truth_dir") / "manual_counts.csv")
     count_rows = []
     for r in gt.itertuples():
@@ -378,6 +383,13 @@ def write_markdown(r: dict, vtab: pd.DataFrame | None, cfg: dict) -> None:
           "The 'known' species is therefore 'small schooling fish (species unconfirmed)'. BioCLIP zero-shot could not name the species reliably (see RESOURCES.md).",
           "* The image-level flag test uses screenshot crops, which come from a different domain than live video crops. On video, the review queue is the safety net.",
           "* Every result comes from one video and two manually counted frames. Results on other sites or seasons are unknown.", ""]
+    try:
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from experiment_report import top_sections
+
+        L = top_sections(r) + ["", "---", "", "# FINAL: detailed report", ""] + L[2:]
+    except Exception as exc:  # the detailed report must still be written
+        print("experiment_report failed:", exc)
     (ROOT / "EVALUATION.md").write_text("\n".join(L))
 
 
