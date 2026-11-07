@@ -1,69 +1,82 @@
-# DEMO: BlueSight AI (about 6 minutes)
+# DEMO: BlueSight AI (about 6½ minutes)
 
 **Video:** `T1-STAT2 411.MP4` (T1-STAT2, 10 Sept 2025, 35:47, 4K)
-**Demo window:** **21:20 → 22:35** (start **1280 s**, duration **75 s**), in the demo half of the video, which was never used for tuning.
+**Demo window:** **21:20 → 22:35** (start **1280 s**, length **75 s**), in the demo half of the video, which was never used for tuning.
 **What's in it:** a school of small fish, plus a large **European green crab** (a held-out species, NOT in the registry) walking along the measuring pole from about **21:31 to 21:45**. The biologists' own count at 22:00 is 102 fish + 1 green crab.
 
-## Before the demo (once, about 1 minute)
+Every step below was run end to end through the real app by `scripts/demo_check.py` (results at the bottom). Its screenshots are in `outputs/screenshots/demo/`.
+
+## Before the demo (once, about 2 minutes)
 
 ```bash
-cd ~/Documents/hubhacks
-.venv/bin/python scripts/reset_demo.py     # clears earlier approvals/reviews, re-runs the demo window (warm cache)
+cd <the project folder>          # e.g. ~/Desktop/hubhacks
+.venv/bin/python scripts/reset_demo.py      # clears earlier approvals/reviews, re-runs the demo window (warm cache)
 .venv/bin/streamlit run app/streamlit_app.py
 ```
 
-* Open http://localhost:8501. Type a name in **Reviewer name** in the sidebar, e.g. "Demo Biologist".
-* To prove "offline": turn Wi-Fi off now. Everything below works without a network.
-* Expected starting state: Species registry = only *small schooling fish*. Review queue item #1 = the green crab (`…_1280-1355s_t630`).
+* Open **http://localhost:8501/?reviewer=Demo+Biologist**. The `reviewer` part fills in "Your name" in the sidebar; or type a name there.
+* To prove "offline", turn Wi-Fi off now. Everything below works without a network.
+* Expected starting state: **Species registry** = only *Small schooling fish*. **Review queue**: item 1 is the green crab (21:3x, *Possibly a species not in the registry*).
 
-## 1. Murky clip: enhancement and visibility (Analyze page)
+## 1. Murky water: enhancement and visibility (Analyze page, ~45 s)
 
-1. Sidebar **Page → Analyze**. Video: `T1-STAT2 411.MP4`.
-2. Set **Preview time** to **420** (7:00), a very hazy stretch. The original and enhanced images appear side by side. **Visibility ≈ 0.27, below V_MIN = 0.40.** The message says fish here are *not* identified and *never* flagged as new.
-3. Move the slider to **1297** (21:37): the crab is next to the pole. Visibility ≈ 0.57, OK to identify.
-   *Say:* in murky water the risk is mislabelling haze as a known fish (EVALUATION.md §4), so murky tracks go to the protocol's "Unknown/Unable to ID due to visibility" column.
+1. Sidebar **Analyze** (the default page). The green badge says **Running locally on Apple GPU (MPS)**.
+2. **Check the water clarity** opens at moment **420 s (7:00)**, a very hazy stretch. **Drag the slider across the image** to compare Original and Enhanced.
+   The visibility score reads **0.27 / 1**, with a grey **"too murky"** badge: *fish here are counted as "Unable to ID due to visibility" and never flagged as a new species.*
+3. Move **Preview moment** to **1297** (21:37): the crab is beside the pole, and visibility is "good".
+   *Say:* in murky water the risk is mislabelling haze as a known fish (EVALUATION.md), so murky tracks go to the protocol's own "Unknown/Unable to ID due to visibility" column instead.
 
-## 2. Counts per species with confidence
+## 2. Counts per species with confidence (~1 min)
 
-1. Still on Analyze: **Analysis window → Custom**, Start **1280**, Duration **75** → **▶ Analyze**. It finishes in seconds because the cache is warm. A first-ever run of this window takes about 2–3 min on the M5.
-2. The result shows **"Ran on this device: Apple M5 … device=mps. Offline: yes."**
-3. Point at the **Counts per species** table: *small_schooling_fish* (confidence ≈ 0.87), "Unconfirmed: probably …?", "Unfamiliar (flagged for review)", and the protocol's "Unknown/Unable to ID due to visibility" column. Columns: **MaxN**, **MeanCount** (protocol 60-s subsamples), MeanCount over all sampled frames, and tracks.
-4. Point at **Footage too murky** (≈ 0 % in this window) and the visibility chart, then the **annotated video** (green = known, yellow = uncertain, red = unfamiliar) and the **⬇ report.csv** button (protocol spreadsheet format).
+1. **Run the analysis** → **Custom window** → Start **1280**, Length **75** → **Analyze video**.
+   The five steps (Enhance → Detect → Track → Identify → Count) light up and turn into ticks. With a warm cache it finishes in about a minute. A first-ever run of this window takes a few minutes on the M5.
+2. The green message: *Finished in … on this computer (Apple M5 …). External network connections during the run: 0.* Three summary cards follow.
+3. Click **See full results**. Point at:
+   * the four cards: **Fish counted** (MeanCount), **Species found**, **Items to review**, **Footage with low visibility**;
+   * **Counts by species**: *Small schooling fish* with MaxN, MeanCount and a **Confidence** bar; *Probably … (unconfirmed)*; *Unfamiliar (flagged for review)*; and the protocol's *Unknown/Unable to ID due to visibility*;
+   * **Fish and visibility over time**: two stacked charts on the same time axis, with the 60-second subsample points dotted, the identification threshold dashed, and grey bands where it's too murky;
+   * **Original and enhanced** slider, the **annotated video** (green = known, yellow "?" = uncertain, red "NEW?" = unfamiliar), and the **Download** buttons (CSV in the protocol spreadsheet layout, JSON).
 
-## 3. A held-out species is flagged as unfamiliar instead of mislabelled
+## 3. A held-out species is flagged as unfamiliar instead of mislabelled (~1 min)
 
-1. **Page → Review queue** ("Show items from" = the 1280-1355 s analysis).
-2. Item #1: **🔴 Unfamiliar: possibly a species not in the registry**, `…_t630`, 21:32–21:41. Play the **clip**: the crab is boxed in orange. The crops show the crab. **Top-3:** small schooling fish **0.47**, far below T_UNKNOWN = 0.68.
+1. Sidebar **Review queue (N)**. The counter reads **0 of N reviewed**.
+2. Item 1: red **! Unfamiliar** badge, **Possibly a species not in the registry**, about **21:32–21:47**. Play the **evidence clip**: the crab is boxed in orange. **Best views of this fish** shows the crab.
+   **Closest registry matches**: *Small schooling fish* with a short bar, **"no match"**, well left of both threshold marks.
    *Say:* the only registry species is the schooling fish. The crab was deliberately held out, and BlueSight says "I don't know this" instead of calling it a fish.
 
-## 4. Approve it, and see it in the registry
+## 4. Approve it, and see it in the registry (~45 s)
 
-1. On item #1, type **European green crab** in "New species name" → click **➕ New species**.
-2. **Page → Species registry**: **European green crab**, source *approved*, **approved by Demo Biologist**, today's date, 5 reference images (the crab crops). No retraining: the prototype was rebuilt instantly.
+1. On item 1, type **European green crab** in *Species name*. Click outside the box, then press **N** (or click **New species**).
+   A toast confirms it, the counter moves to **1 of N reviewed**, and the next item appears. (Shortcuts: `N` new · `E` existing · `X` reject · `J` skip · `K` back.)
+2. Sidebar **Species registry**: a **European green crab** card with the green **★ New · added in review** badge, **Approved by Demo Biologist**, today's date, and 5 reference images (the crab crops). No retraining: the prototype was rebuilt instantly.
 
-## 5. Re-run: the new species is recognised
+## 5. Re-run: the new species is recognised (~1 min)
 
-1. **Page → Analyze** → same Custom window (1280 / 75) → **▶ Analyze** (about 30 s).
-2. The Counts table now has a **european_green_crab** row. In the protocol subsamples it appears in the **invertebrate_count** column, not in total fish.
-3. The **second crab track** (21:43–21:48), which nobody reviewed, is now recognised automatically as European green crab (similarity 0.83). It was "unfamiliar" before.
-   *Be upfront:* after approval from a single track, the crab prototype also matches some sand patches (EVALUATION.md §5b: 2 of 10 matches are the crab). The fix is the review loop: confirm more crab examples with **Existing species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
+1. **Analyze** → same Custom window (1280 / 75) → **Analyze video** (cached, about a minute).
+2. **See full results**: **Species found** now includes **European green crab**, and the species table has a *European green crab* row. In the protocol subsamples it is counted as an **invertebrate**, not in total fish.
+3. The second crab track (around 21:43–21:48), which nobody reviewed, is now recognised automatically.
+   *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches (EVALUATION.md, demo section). The fix is the review loop: confirm more crab examples with **Existing species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
 
-## 6. Runtime and offline
+## 6. How we know it's local (30 seconds, Model & privacy page)
 
-* Results page → **Run details**: `ran_on`, `runtime_s`, `timings_s`, models (motion detector + BioCLIP), thresholds.
-* Full cost of first-time processing: about **62–69 s of compute per minute of 4K video** on the Apple M5 (EVALUATION.md §1). Cached re-runs take seconds.
-* Sidebar: **Offline models: ✅ yes**, *No cloud or hosted AI APIs are used.* Wi-Fi has been off the whole time.
+Sidebar **Model & privacy**. Read it top to bottom:
+1. **Green banner: "0 external network calls during the last run."** This is not a slogan. During every analysis BlueSight's network guard watches every outgoing connection; anything that isn't to this computer would be blocked and counted. This number comes from the run you just did.
+2. **Cards:** *Compute device: Apple GPU*, **Offline mode: On** (the model libraries are switched to offline before they load), **App telemetry: Off** (and the app is only reachable from this computer), and the last run's runtime with its **energy estimate** in Wh and grams of CO2.
+3. **AI models on this computer:** BioCLIP (MIT), OWLv2 (Apache-2.0, optional), DINOv2 (Apache-2.0, fallback): version, licence, and the **folder on this disk** each one is loaded from, with its SHA-256 fingerprint.
+4. *Say:* "Wi-Fi has been off the whole time. There's also an automated test that runs the whole analysis with the internet blocked, and the full evidence is in LOCAL_VERIFICATION.md."
 
 ## Optional: rejecting junk
 
-In the Review queue, pick an item that shows only the pole or sand → **✖ Reject / not a fish** → re-run. That item is excluded from counts, and similar flagged items are auto-rejected (`auto_rejected_tracks` in Run details).
+In the Review queue, open an item that shows only the pole or sand → **Reject: not a fish** (or press `X`) → re-run. It's excluded from counts, and similar flagged items are auto-rejected (`auto_rejected_tracks` in *Run details*).
 
 ## After the demo
 
-`.venv/bin/python scripts/reset_demo.py` restores the starting state (removes approved species and review decisions).
+`.venv/bin/python scripts/reset_demo.py` restores the starting state (removes approved species and review decisions, re-runs the demo window).
 
 ## If something goes wrong
 
-* The queue doesn't start with the crab → set "Show items from" to `T1_STAT2_411__1280-1355s`, or run `scripts/reset_demo.py` again.
+* The queue doesn't start with the crab → in **Show items from** pick `T1 STAT2 411 · 1280-1355s`, or run `scripts/reset_demo.py` again.
+* Review buttons are greyed out → type your name in the sidebar ("Your name (recorded with each review)").
 * The app looks stale → refresh the browser. Logs are in `outputs/logs/bluesight.log`.
-* No video plays → the clips are H.264 (hardware-encoded) and play in Chrome/Safari.
+* No video plays → the clips are H.264 (hardware-encoded) and play in Chrome and Safari.
+* A keyboard shortcut doesn't fire → click on an empty part of the page first (shortcuts are ignored while typing in a box).

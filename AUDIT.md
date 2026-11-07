@@ -72,6 +72,7 @@ Scanned: `src/`, `app/`, `scripts/`, `tests/`, `config.yaml`, `requirements.txt`
 | N2 | Streamlit | `browser.gatherUsageStats` defaults to **true**: the browser sends usage stats to Streamlit. | Telemetry leaves the machine. | `.streamlit/config.toml`: `gatherUsageStats = false`. |
 | N3 | Streamlit | `server.address` unset → listens on **all interfaces** (reachable from the local network). | Survey data visible to anyone on the same Wi-Fi. | `server.address = "localhost"`. |
 | N4 | Streamlit | "Deploy" toolbar button links to Streamlit Cloud. | Only if clicked. | `client.toolbarMode = "minimal"` hides it. |
+| N8 | Streamlit error box | Shows "Ask Google" / "Ask ChatGPT" buttons on any exception (default `showErrorLinks = "auto"` = on localhost). Clicking sends the error text to a hosted service. Found during v2 testing. | Only if clicked, but off-message | `client.showErrorLinks = false`. |
 | N5 | none found | No `requests`/`httpx`/`urllib`, no API keys, no OpenAI/Anthropic/hosted-inference clients in project code. | — | — |
 | N6 | `scripts/prepare_resources.py` | BioCLIP zero-shot label proposals | Same as N1 (already calls `load_config()` first). | Covered by N1. |
 | N7 | Dev tools (new in v2) | Playwright (screenshots) and codecarbon | Playwright drives a local browser at localhost only. codecarbon's `OfflineEmissionsTracker` makes no calls; its online `EmissionsTracker` would (never used). | Listed in LOCAL_VERIFICATION.md. |

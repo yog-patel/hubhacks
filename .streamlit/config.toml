@@ -13,7 +13,8 @@ runOnSave = false
 
 [client]
 toolbarMode = "minimal"
-showErrorDetails = true
+showErrorDetails = "full"         # tracebacks stay visible to the biologist (they're on this computer)
+showErrorLinks = false            # no "Ask Google" / "Ask ChatGPT" buttons on errors (they'd send error text to a hosted service)
 
 [global]
 showWarningOnDirectExecution = false

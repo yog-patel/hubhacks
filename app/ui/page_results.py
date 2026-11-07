@@ -147,7 +147,8 @@ def page() -> None:
 
     st.html(f'<div class="bs-facts"><span>Site <b>{T.esc(rep["site"])}</b></span><span>Date <b>{T.esc(rep["date"])}</b></span>'
             f'<span>Window <b>{C.fmt_t(w["start_s"])}–{C.fmt_t(w["end_s"])}</b> ({w["duration_min"]:.1f} min)</span>'
-            f'<span>Subsamples <b>{rep["protocol"]["n_subsamples"]}</b></span><span>Runtime <b>{rep["runtime_s"]:.0f} s</b></span></div>')
+            f'<span>Subsamples <b>{rep.get("protocol", {}).get("n_subsamples", len(rep.get("subsamples", [])))}</b></span>'
+            f'<span>Runtime <b>{rep.get("runtime_s", 0):.0f} s</b></span></div>')
     T.cards([
         {"k": "Fish counted", "v": f"{rep['MeanCount_total_fish']:.1f}", "tone": "info",
          "d": f"MeanCount: mean fish per 60-s subsample · busiest subsample {maxn_total}"},

@@ -140,6 +140,7 @@ def main() -> None:
               "| Streamlit usage statistics (on by default) | Streamlit | **Disabled:** `.streamlit/config.toml` `browser.gatherUsageStats = false`. |",
               "| Streamlit listening on all network interfaces (default) | Streamlit | **Restricted:** `server.address = \"localhost\"`. |",
               "| Streamlit 'Deploy' button (links to Streamlit Cloud) | Streamlit toolbar | **Hidden:** `client.toolbarMode = \"minimal\"`. |",
+              "| 'Ask Google' / 'Ask ChatGPT' buttons on error messages (Streamlit default on localhost) | Streamlit error box | **Removed:** `client.showErrorLinks = false` (found while testing the app in v2). |",
               "| Web fonts | app CSS | **Not used:** system fonts only, so the browser never contacts a font server. |",
               "| `requests` / `httpx` / `urllib` calls, API keys, OpenAI/Anthropic/Google/Roboflow clients | project code | **None found.** |",
               "| CodeCarbon (energy estimate) | `src/bluesight/energy.py` | Uses `OfflineEmissionsTracker` only, which has no API. Verified: 0 connections under the guard. |",

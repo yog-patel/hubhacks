@@ -120,3 +120,26 @@ The biologists' 14:01 screenshot pins the annotated instant only to the second. 
 
 ## D20. Motion-detector background size alternates (known v1 inconsistency, left as is)
 Frame times are rounded frame indices, so "8 s later" is either 7.975 or 8.008 s. With v1's 1e-6 tolerance the +8 s frame is dropped for about half of the frames. The background stack then alternates between 16 and 17 frames, and `torch.median` takes the lower middle value for even sizes. `detector.motion.ctx_tol_s` (new; 0.26 keeps the stack size constant) was measured (EVALUATION E2): identical frame-level F1, and the count at 14:01 moved from 18 to 16 (further from the manual 36). That isn't a measurable improvement, so the default stays at v1 behaviour (option off), as the "keep only what helps" rule requires.
+
+## D21. Phase-2 outcome: what was kept
+Rule applied: keep a change only if it measurably helps on tuning data (tuning half + held-out photos), never judged on the demo half. All numbers are in EVALUATION.md → Phase 2 experiment log.
+* **Kept: CLAHE clip 2 / grid 4** (was 3 / 8) for the detector's luminance input and the displayed enhanced frame. It gave the best detection F1 at the annotated 14:01 instant. The visibility score is computed on the original frame, so it is unchanged.
+* **Kept: tracker `min_assoc_size` 200 and `box_expand` 2.5** (were 120 and 3.0). Fewer split tracks and fewer merged tracks.
+* **Reverted** everything else, including two changes that looked good on the screenshot photos only (enhanced crops for BioCLIP; k-means sub-prototypes). On real video tracks the first fell to chance and the second doubled "possibly new species" flags. The k-means code stays as an option (`identify.prototypes_per_species`, default 1) with the measurements recorded.
+* **Sampling stays at 2 fps:** 1 fps undercounts at 14:01 even with the same persistence time, and 0.5 fps counts nothing.
+* **No distillation:** OWLv2 base (60 settings) and large (30 settings) found 0 of the 36 annotated fish, so there are no pseudo-labels to distil from.
+* **ByteTrack `lost_track_buffer` is a no-op at 2 fps** (supervision scales it by frame_rate/30; values < 15 → 0 frames). It's left at 4 (= 0 frames), because buffers that actually take effect (30, 45) increased merged tracks. The config comment says so.
+* Changing the CLAHE and tracker settings changes the cache key, so every video window is re-detected once with the FINAL settings (EVALUATION.md has the fresh runtimes).
+
+## D22. Local verification design
+* **Offline env in `bluesight/__init__.py`**, not only in `load_config()`, because `huggingface_hub` reads `HF_HUB_OFFLINE` at import time. `BLUESIGHT_ALLOW_DOWNLOADS=1` is the explicit, documented way to do the one-time download.
+* **Network guard (`bluesight/netguard.py`)**: patches `socket.connect`, `connect_ex` and `getaddrinfo` for the duration of each run. Loopback and Unix sockets are allowed; anything else is recorded and, in `block` mode (default), refused. It's in-process: it covers every library BlueSight uses, but not other programs (the Wi-Fi-off test covers those). The count is stored in each `report.json` and drives the Model & privacy indicator.
+* **The offline test patches sockets itself**, so the guard isn't the only thing checking the guard.
+* **Energy:** CodeCarbon `OfflineEmissionsTracker` (MIT), Nova Scotia grid. On Apple Silicon without root it can only estimate CPU power from load plus a RAM model, and it can't see the Apple GPU, so the numbers are labelled estimates and lower bounds everywhere.
+* **Streamlit:** `gatherUsageStats=false`, `server.address=localhost`, `toolbarMode=minimal` (hides "Deploy"), system fonts only.
+
+## D23. Accessibility: what is and isn't covered
+An automated pass with Playwright on every page found no images without alt text, no unlabelled inputs and no unnamed buttons. All BlueSight buttons are ≥ 44 px tall, and no text below 4.5:1 after the fixes. Two things are left:
+* Streamlit's built-in icon buttons (help "?", table toolbar, fullscreen) are 16–24 px. That meets WCAG 2.2's 24 px minimum for most of them, with spacing for the help icons, and can't be resized without patching Streamlit.
+* Data tables are drawn on a canvas by Streamlit's grid component. It has its own keyboard navigation, but screen-reader support is limited. The CSV download and the "Show this chart as a table" views are the accessible fallback.
+* Not tested: real screen readers (VoiceOver/NVDA) and 200% zoom. Both are recommended before production use.
