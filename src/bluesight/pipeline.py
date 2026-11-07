@@ -10,6 +10,7 @@ import datetime as dt
 import hashlib
 import heapq
 import json
+import os
 import pickle
 import platform
 import re
@@ -28,7 +29,7 @@ from .db import DB, dumps, to_blob
 from .detect import Frame, get_detector
 from .enhance import visibility_score
 from .identify import (FLAG_STATUSES, auto_reject, KNOWN, LOW_VIS, REJECTED, UNCERTAIN, UNFAMILIAR, Thresholds,
-                       classify_track, crop_quality, mean_embedding, merge_flagged)
+                       classify_track, crop_quality, mean_embedding, merge_flagged, top_matches)
 from .io_video import VideoWriter, iter_sampled_frames, resize_width, video_info
 from .logs import get_logger
 from .registry import Registry
@@ -58,6 +59,15 @@ def hardware_string(device: str) -> str:
     except Exception:
         pass
     return f"{cpu} ({platform.system()} {platform.machine()}), device={device}"
+
+
+def _torch_version() -> str:
+    try:
+        import torch
+
+        return torch.__version__
+    except Exception:
+        return "unavailable"
 
 
 def analysis_window(duration_s: float, cfg: dict[str, Any], start_s: float | None, duration: float | None) -> tuple[float, float]:
@@ -185,6 +195,40 @@ def _no_crops(cdir: Path, ids: set[int]) -> set[int]:
 def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s: float | None = None,
               duration_s: float | None = None, progress: Progress | None = None, force: bool = False,
               make_evidence: bool = True) -> dict[str, Any]:
+    """Analyse one video window (see ``_run_video``) under the network guard and the energy meter.
+
+    Every outbound connection attempted during the run is counted (and blocked in ``runtime.network_guard: block``
+    mode); the count and an energy/CO2 estimate are added to report.json and outputs/logs/energy.csv.
+    """
+    from .energy import EnergyMeter
+    from .netguard import NetworkGuard
+
+    cfg = cfg or load_config()
+    mode = str(cfg.get("runtime", {}).get("network_guard", "block"))
+    with NetworkGuard(mode) as guard, EnergyMeter(cfg) as meter:
+        report = _run_video(video_path, cfg, start_s, duration_s, progress, force, make_evidence)
+    report["network"] = guard.summary()
+    report["energy"] = meter.result
+    if guard.external_attempts:
+        log.warning("network guard: %d external connection attempt(s) during %s: %s", guard.external_attempts,
+                    report["run_id"], [a["host"] for a in report["network"]["attempts"]])
+    run_dir = Path(report["annotated_video"]).parent
+    (run_dir / "report.json").write_text(json.dumps(report, indent=2, default=float))
+    ef = path(cfg, "logs_dir") / "energy.csv"
+    new = not ef.exists()
+    with open(ef, "a") as fh:
+        if new:
+            fh.write("generated_at,run_id,cached_detection,runtime_s,energy_wh,co2_g,external_connections\n")
+        e = meter.result
+        fh.write(f"{report['generated_at']},{report['run_id']},{int(report['cached_detection'])},{report['runtime_s']},"
+                 f"{'' if e.get('energy_wh') is None else e['energy_wh']},{'' if e.get('co2_g') is None else e['co2_g']},"
+                 f"{guard.external_attempts}\n")
+    return report
+
+
+def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s: float | None = None,
+               duration_s: float | None = None, progress: Progress | None = None, force: bool = False,
+               make_evidence: bool = True) -> dict[str, Any]:
     """Analyse one video window and write outputs/runs/<video>/<start>-<end>s/ (report, CSV, annotated video, flags).
 
     Args:
@@ -299,8 +343,7 @@ def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s
     for g in groups:
         sub = tindex.loc[g]
         e = mean_embedding(np.stack([embs[k] for k in g]))
-        top3 = [{"species": n, "similarity": float(s)} for n, s in
-                sorted(zip(names, (protos @ e).tolist()), key=lambda x: -x[1])[:3]] if names else []
+        top3 = top_matches(e, names, protos, 3) if names else []
         best = top3[0]["similarity"] if top3 else 0.0
         status = UNFAMILIAR if (sub.status == UNFAMILIAR).any() and best < th.T_UNKNOWN else (UNCERTAIN if best >= th.T_UNKNOWN else UNFAMILIAR)
         items.append({"tracks": [int(x) for x in g], "emb": e, "top3": top3, "best": best, "status": status,
@@ -449,7 +492,8 @@ def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s
         "window": {"start_s": start, "end_s": end, "duration_min": round(win_min, 2)},
         "protocol": {"subsample_interval_s": pcfg["subsample_interval_s"], "n_subsamples": len(points),
                      "count_window_s": pcfg["count_window_s"], "source": "Coastal Action DRAFT FFH Video Analysis Protocol"},
-        "ran_on": hardware_string(device), "offline": True, "cached_detection": cached,
+        "ran_on": hardware_string(device), "torch_version": _torch_version(),
+        "offline": os.environ.get("HF_HUB_OFFLINE") == "1" and os.environ.get("TRANSFORMERS_OFFLINE") == "1", "cached_detection": cached,
         "runtime_s": round(runtime, 1), "timings_s": {k: round(v, 1) for k, v in timings.items()},
         "full_processing_s_per_video_min": round((detect_runtime + timings["embed_s"] + timings["identify_s"]) / max(win_min, 1e-6), 1),
         "models": {"detector": meta["detector"], "embedder": embedder.version},

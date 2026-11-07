@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS species (
     name TEXT PRIMARY KEY, display_name TEXT, source TEXT, date_added TEXT, approved_by TEXT,
     n_images INTEGER, prototype BLOB, embedder TEXT, active INTEGER DEFAULT 1, notes TEXT
 );
+CREATE TABLE IF NOT EXISTS species_prototypes (
+    species TEXT, k INTEGER, vec BLOB, embedder TEXT, PRIMARY KEY (species, k)
+);
 CREATE TABLE IF NOT EXISTS species_images (
     species TEXT, path TEXT, source TEXT, added_at TEXT, embedding BLOB, PRIMARY KEY (species, path)
 );

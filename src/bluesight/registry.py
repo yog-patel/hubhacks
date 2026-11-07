@@ -42,6 +42,36 @@ def compute_prototype(embs: np.ndarray) -> np.ndarray:
     return mean_embedding(embs)
 
 
+def compute_prototypes(embs: np.ndarray, k_max: int = 1, min_per_prototype: int = 8, n_init: int = 5) -> np.ndarray:
+    """Several prototypes per species: spherical k-means on its reference embeddings (EVALUATION.md E6).
+
+    k = min(k_max, n_images // min_per_prototype), at least 1, so a species with few images (e.g. one approved
+    track) keeps a single mean prototype. Deterministic: ``n_init`` seeded restarts, keep the solution with the
+    highest total cosine similarity (lowest inertia). No labels are involved. At match time a crop's similarity
+    to a species is its similarity to the closest of that species' prototypes.
+    """
+    e = np.asarray(embs, np.float32)
+    if len(e) == 0:
+        raise ValueError("cannot build a prototype from zero images")
+    k = max(1, min(int(k_max), len(e) // max(1, int(min_per_prototype))))
+    if k == 1:
+        return mean_embedding(e)[None]
+    best, best_score = None, -np.inf
+    for seed in range(n_init):
+        rng = np.random.default_rng(seed)
+        C = e[rng.choice(len(e), k, replace=False)]
+        for _ in range(100):
+            a = np.argmax(e @ C.T, 1)
+            C2 = np.stack([mean_embedding(e[a == i]) if (a == i).any() else C[i] for i in range(k)])
+            if np.allclose(C2, C, atol=1e-6):
+                break
+            C = C2
+        score = float((e @ C.T).max(1).sum())
+        if score > best_score:
+            best, best_score = C, score
+    return best.astype(np.float32)
+
+
 def now() -> str:
     return dt.datetime.now().isoformat(timespec="seconds")
 
@@ -64,14 +94,25 @@ class Registry:
 
     # ------------------------------------------------------------- queries
     def prototypes(self) -> tuple[list[str], np.ndarray]:
-        """Active species names and an (S, D) prototype matrix for the current embedder."""
+        """Active species and their prototype matrix for the current embedder.
+
+        Returns one row per prototype, so a species with k sub-prototypes appears k times in ``names``
+        (``identify.top_matches`` takes the best row per species).
+        """
         rows = self.db.q(
             "SELECT name, prototype FROM species WHERE active=1 AND prototype IS NOT NULL AND embedder=? ORDER BY name",
             (self.embedder_name(),),
         )
         if not rows:
             return [], np.zeros((0, 1), np.float32)
-        return [r["name"] for r in rows], np.stack([from_blob(r["prototype"]) for r in rows])
+        names, vecs = [], []
+        for r in rows:
+            subs = self.db.q("SELECT vec FROM species_prototypes WHERE species=? AND embedder=? ORDER BY k",
+                             (r["name"], self.embedder_name()))
+            for v in ([from_blob(x["vec"]) for x in subs] or [from_blob(r["prototype"])]):
+                names.append(r["name"])
+                vecs.append(v)
+        return names, np.stack(vecs)
 
     def embedder_name(self) -> str:
         if self._embedder is not None:
@@ -105,6 +146,12 @@ class Registry:
             return 0
         self.db.x("UPDATE species SET prototype=?, n_images=?, embedder=? WHERE name=?",
                   (to_blob(compute_prototype(embs)), len(embs), self.embedder.version, species))
+        ic = self.cfg.get("identify", {})
+        P = compute_prototypes(embs, int(ic.get("prototypes_per_species", 1)), int(ic.get("images_per_prototype", 8)))
+        with self.db.tx() as c:
+            c.execute("DELETE FROM species_prototypes WHERE species=?", (species,))
+            c.executemany("INSERT INTO species_prototypes(species, k, vec, embedder) VALUES (?,?,?,?)",
+                          [(species, i, to_blob(v), self.embedder.version) for i, v in enumerate(P)])
         return len(embs)
 
     def build_from_folders(self) -> dict[str, int]:

@@ -57,8 +57,10 @@ class MotionDetector(Detector):
         self.ecfg = enhance_cfg
         self.device = device
         self.name = "motion"
+        self.ctx_tol = float(cfg.get("ctx_tol_s", 1e-6))
         self.version = (
             f"motion-z{cfg['z_thresh']}-w{cfg['window_s']}-k{cfg['k']}-a{cfg['min_area']}-e{cfg['min_elongation']}"
+            + (f"-ct{self.ctx_tol:g}" if self.ctx_tol > 1e-5 else "")
         )
         try:
             import torch
@@ -102,6 +104,10 @@ class MotionDetector(Detector):
 
     def detect_stream(self, frames: Iterable[Frame]) -> Iterator[tuple[Frame, np.ndarray]]:
         W, step = float(self.c["window_s"]), float(self.c["step_s"])
+        # Frame times are rounded frame indices, so "8 s later" is 7.975 s or 8.008 s. With a 1e-6 tolerance the
+        # +W frame is dropped for half the frames, so the background stack alternates between odd and even sizes
+        # (and torch.median takes the LOWER middle for even sizes). ``ctx_tol_s`` keeps the stack size constant.
+        tol = self.ctx_tol
         buf: deque[tuple[Frame, np.ndarray]] = deque()
         pending = 0  # index into buf of the next frame to emit
 
@@ -112,17 +118,17 @@ class MotionDetector(Detector):
                 if j == i:
                     continue
                 dt = f.t - t0
-                if abs(dt) <= W + 1e-6 and abs(dt / step - round(dt / step)) < 0.26 and round(dt / step) != 0:
+                if abs(dt) <= W + tol and abs(dt / step - round(dt / step)) < 0.26 and round(dt / step) != 0:
                     out.append(lum)
             return out
 
         for fr in frames:
             buf.append((fr, self._lum(fr.small)))
-            while pending < len(buf) and buf[-1][0].t - buf[pending][0].t >= W - 1e-6:
+            while pending < len(buf) and buf[-1][0].t - buf[pending][0].t >= W + (tol if tol > 1e-5 else 0.0) - 1e-6:
                 f, lum = buf[pending]
                 yield f, self.detect_lum(lum, ctx_for(pending))
                 pending += 1
-                while buf and pending > 0 and f.t - buf[0][0].t > W + 1e-6:
+                while buf and pending > 0 and f.t - buf[0][0].t > W + (tol if tol > 1e-5 else 1e-6):
                     buf.popleft()
                     pending -= 1
         while pending < len(buf):

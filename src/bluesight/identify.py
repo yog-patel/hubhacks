@@ -68,12 +68,18 @@ def mean_embedding(embs: np.ndarray) -> np.ndarray:
 
 
 def top_matches(emb: np.ndarray, names: Sequence[str], protos: np.ndarray, k: int = 3) -> list[dict[str, Any]]:
-    """Cosine similarity to every prototype; the top k as [{species, similarity}]."""
+    """Cosine similarity to every prototype; the top k SPECIES as [{species, similarity}].
+
+    ``names`` may repeat a species (several prototypes per species); a species' similarity is its best prototype's.
+    """
     if len(names) == 0:
         return []
     sims = protos @ (emb / (np.linalg.norm(emb) + 1e-12))
-    order = np.argsort(-sims)[:k]
-    return [{"species": names[i], "similarity": float(sims[i])} for i in order]
+    best: dict[str, float] = {}
+    for n, s in zip(names, sims.tolist()):
+        if n not in best or s > best[n]:
+            best[n] = float(s)
+    return [{"species": n, "similarity": v} for n, v in sorted(best.items(), key=lambda x: -x[1])[:k]]
 
 
 def decide_status(best: float, visibility: float, track_len: int, box_area: float, th: Thresholds) -> str:

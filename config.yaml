@@ -24,6 +24,12 @@ paths:
 runtime:
   device: auto            # auto | cuda | mps | cpu
   offline: true           # forbid any network access to model hubs after first download
+  network_guard: block    # block | count : every outbound connection during a run is counted (block = also refused)
+
+energy:
+  enabled: true           # CodeCarbon OfflineEmissionsTracker (no internet); estimate only, Apple GPU not measured
+  country_iso_code: CAN
+  region: nova scotia
 
 survey:
   site_from_filename: true   # "T1-STAT2 411.MP4" -> site "T1-STAT2"
@@ -85,6 +91,8 @@ embedder:
 
 identify:
   best_crops: 5             # crops averaged per track
+  prototypes_per_species: 1 # k-means sub-prototypes per species (1 = v1 single mean); see EVALUATION.md E6
+  images_per_prototype: 8   # k = min(prototypes_per_species, n_images // this), so small species keep 1
   T_KNOWN: 0.77  # tuned values are written here by scripts/evaluate.py
   T_UNKNOWN: 0.68
   V_MIN: 0.4

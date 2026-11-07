@@ -16,3 +16,4 @@ timm==1.0.31
 torch==2.15.0
 torchvision==0.29.2
 transformers==4.57.6
+codecarbon>=3.3  # offline energy/CO2 estimate (OfflineEmissionsTracker), MIT

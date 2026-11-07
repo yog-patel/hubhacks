@@ -52,12 +52,16 @@ def image_level_sets(cfg: dict) -> dict[str, np.ndarray]:
     ref = sorted(glob.glob(str(path(cfg, "reference_dir") / "small_schooling_fish" / "*")))
     proto_f = [f for f in ref if "_13min_" in f or "_14min_" in f]
     known_f = [f for f in ref if "_21min_" in f]
-    P = emb(proto_f).mean(0)
-    P /= np.linalg.norm(P)
-    out = {"n_proto_images": len(proto_f), "known": emb(known_f) @ P}
+    from bluesight.registry import compute_prototypes
+
+    ic = cfg["identify"]
+    # same prototype rule as the registry (k-means sub-prototypes if configured; best one counts)
+    P = compute_prototypes(emb(proto_f), int(ic.get("prototypes_per_species", 1)), int(ic.get("images_per_prototype", 8)))
+    sim = lambda X: (X @ P.T).max(1)
+    out = {"n_proto_images": len(proto_f), "n_prototypes": int(len(P)), "known": sim(emb(known_f))}
     for sp in cfg.get("held_out_species") or []:
         fs = sorted(glob.glob(str(path(cfg, "held_out_dir") / sp / "*")))
-        out[f"held:{sp}"] = emb(fs) @ P if fs else np.zeros(0)
+        out[f"held:{sp}"] = sim(emb(fs)) if fs else np.zeros(0)
     out["held"] = np.concatenate([v for k, v in out.items() if k.startswith("held:")])
     return out
 
