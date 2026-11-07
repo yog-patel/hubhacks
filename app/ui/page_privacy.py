@@ -110,9 +110,13 @@ def page() -> None:
     if rt.exists():
         st.subheader("Energy per run (estimates)", anchor=False)
         df = pd.read_csv(rt).tail(12).iloc[::-1]
+        df = pd.DataFrame({"When": df.generated_at.str.replace("T", " "), "Analysis": df.run_id.str.replace("__", " · "),
+                           "Detections": df.cached_detection.map({1: "reused from cache", 0: "full processing"}),
+                           "Runtime (s)": df.runtime_s, "Energy (Wh)": df.energy_wh, "CO₂e (g)": df.co2_g,
+                           "External connections": df.external_connections})
         st.dataframe(df, hide_index=True, width="stretch")
-        st.caption("Estimated with CodeCarbon's offline tracker from CPU/GPU power models and Nova Scotia's grid carbon "
-                   "intensity. Treat these as estimates, not meter readings.")
+        st.caption("Estimated with CodeCarbon's offline tracker: CPU power from CPU load, RAM from a power model, and Nova Scotia's "
+                   "grid carbon intensity. The Apple GPU is not measured, so these are lower bounds: estimates, not meter readings.")
     tests = root / "outputs" / "logs" / "offline_test.json"
     if tests.exists():
         t = json.loads(tests.read_text())

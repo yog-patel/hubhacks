@@ -310,8 +310,9 @@ def write_markdown(r: dict, vtab: pd.DataFrame | None, cfg: dict) -> None:
         for d in r["detectors"]:
             L.append(f"| {d['time']} | {d['half']} | {d['detector']} | {d['gt']} | {d['detections']} | {d.get('precision', '–')} | "
                      f"{d.get('recall', '–')} | {d.get('f1', '–')} | {d['sec_per_frame']} |")
-        L += ["", "The motion detector's parameters were chosen by a sweep on the 14:01 frame (tuning half) only. OWLv2 (the CLAUDE.md "
-              "default) misses most of these faint fish, so the motion detector is the configured default.", ""]
+        L += ["", "This is v1's single-frame score (frame 841.00 s, about 0.3 s before the instant the biologists annotated; DECISIONS D19), "
+              "kept for continuity. The v2 settings were chosen on the aligned frames (Phase 2 log above). OWLv2 (the CLAUDE.md default) "
+              "misses these faint fish, so the motion detector is the configured default.", ""]
     ib, ia = r["image_before"], r["image_after"]
     L += ["## 3. Unfamiliar-fish flag (image level, held-out species)", "",
           f"The prototype is built from {r['n_proto_images']} T2-STAT2 13–14 min schooling-fish crops. Known test: {ia['known_n']} T2-STAT2 21-min "
@@ -363,18 +364,23 @@ def write_markdown(r: dict, vtab: pd.DataFrame | None, cfg: dict) -> None:
         fi = dr["first_review_item"]
         known = dr["tracks_known_as_new_species"]
         crab_span = [t for t in known if t["end_s"] >= 1290 and t["start_s"] <= 1306]
+        unreviewed = [t for t in crab_span if t["track_id"] not in set(dr.get("first_item_tracks", []))]
+        others = [t for t in known if t not in crab_span]
+        at_2200 = [t for t in others if t["start_s"] <= 1320 <= t["end_s"]]
+        mmss = lambda s: f"{int(s // 60)}:{int(s % 60):02d}"
         L += ["## 5b. Video level: the held-out green crab in the demo window (`scripts/rehearse_demo.py`)", "",
               f"Demo window {dr['window']['start_s']:.0f}–{dr['window']['end_s']:.0f} s (21:20–22:35, demo half). A large European green crab, which is held out of the registry, "
               "walks along the pole from about 21:31 to 21:45 (checked by eye in the frames).", "",
               f"* **Before approval:** the crab's track is review item #1 (the most unfamiliar), status **{fi['status']}**, best similarity {fi['best_similarity']:.2f} "
-              f"to the only registry species. It is **flagged as unfamiliar, not mislabelled.** A second crab track (21:43–21:48) is also flagged unfamiliar (0.53).",
+              f"to the only registry species ({mmss(fi['start_s'])}–{mmss(fi['end_s'])}). It is **flagged as unfamiliar, not mislabelled.**",
               f"* **Approved** as '{dr['approved_as']}' from the first item's 5 crops. The re-run took {dr['rerun_runtime_s']:.0f} s from cache.",
-              f"* **After approval:** {len(known)} tracks are recognised as {dr['approved_as']}. **{len(crab_span)} of them fall inside the walking crab's time span**, including the second, "
-              f"unreviewed crab track, which is now recognised automatically. The other {len(known) - len(crab_span)} are sand or caustic patches that resemble the sandy background of the crab crops. One of them "
-              "sits where the biologists circled a camouflaged crab at 22:00, but its crops can't confirm that. "
+              f"* **After approval:** {len(known)} tracks are recognised as {dr['approved_as']}. **{len(crab_span)} of them fall inside the walking crab's time span**, "
+              f"including {len(unreviewed)} track(s) nobody reviewed ({', '.join(mmss(t['start_s']) + '–' + mmss(t['end_s']) for t in unreviewed) or 'none'}), "
+              f"now recognised automatically. The other {len(others)} are outside the crab's walk (sand or caustic patches that resemble the sandy background of the crab crops); "
+              f"{len(at_2200)} of them overlap 22:00, where the biologists circled a camouflaged crab, but their crops can't confirm it. "
               f"{dr['tracks_uncertain_as_new_species']} more tracks become 'probably {dr['approved_as']}?'.",
               "* **Conclusion:** the flag-approve-recognise loop works, but a species approved from a single track has a loose prototype. On sandy footage it over-matches until "
-              "reviewers confirm more examples (Existing species) and reject sand items. Tighter crops were tested (padding 0.6 → 0.15) and improved separation only marginally (sand max 0.86 → 0.87 vs crab 0.83 → 0.85).", ""]
+              "reviewers confirm more examples (Existing species) and reject sand items. (v1 experiment: tighter crops, padding 0.6 → 0.15, improved separation only marginally, sand max 0.86 → 0.87 vs crab 0.83 → 0.85.)", ""]
     L += ["## 6. Honest assessment", "",
           "* **Detection is the weak link.** The fish are faint, translucent and about 50 px long at 1080p. The motion detector under-detects dense, slow schools "
           "and picks up some sunlight caustics on the sand. Many of those false positives are dropped as transient, but some persist and appear as 'uncertain' review items "

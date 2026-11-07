@@ -40,6 +40,10 @@ EXPLAIN = {
     "app/ui/page_privacy.py": "reads the gatherUsageStats setting to display it",
     "app/ui/common.py": "displays the offline status",
     "README.md": "documentation",
+    "scripts/demo_check.py": "Playwright demo check: drives the local app at http://localhost:8501 only (dev tool)",
+    "scripts/local_verification.py": "writes LOCAL_VERIFICATION.md; the matches are words in the explanatory text",
+    "tests/test_v2_units.py": "unit tests of the network guard (only localhost sockets and deliberately blocked lookups)",
+    "requirements.txt": "dependency list: codecarbon is used only through its OfflineEmissionsTracker",
     "config.yaml": "settings only (offline switch, network-guard mode, offline energy estimator, model names)",
 }
 

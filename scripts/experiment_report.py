@@ -47,7 +47,8 @@ ROWS = [
     ("E1", "CLAHE clip 3 / grid 16", ("E1", "baseline CLAHE clip 3, grid 8"), ("E1", "CLAHE clip 3, grid 16"), DET_KEYS, "reverted",
      "Within noise of the baseline."),
     ("E1", "**CLAHE clip 2 / grid 4** (larger tiles, gentler clip)", ("E1", "baseline CLAHE clip 3, grid 8"), ("E1", "CLAHE clip 2, grid 4"),
-     DET_KEYS, "**kept**", "Best F1 of all settings; its worst frame beats the baseline's mean; count closer to the manual 36."),
+     DET_KEYS, "**kept**", "Best F1 of all settings; its worst frame beats the baseline's mean; window count 18 → 20. (In the full "
+               "tuning-half run the 14:01 count later moved the other way; single-instant counts are dominated by frame sampling, see summary.)"),
     ("E1", "Enhanced crops for identification (image level)", ("E1-ID", "raw crops"), ("E1-ID", "enhanced crops"), IMG_KEYS,
      "reverted", "Looks like a huge gain, but the image-level sets differ by background (known = pale mid-water crops, "
                  "held-out = sandy seabed), and enhancement exaggerates exactly that. The video-level check below shows the opposite."),
@@ -203,6 +204,7 @@ def top_sections(final: dict) -> list[str]:
     bf1 = (E.get(("E1", "baseline CLAHE clip 3, grid 8")) or {}).get("metrics", {})
     ff1 = (E.get(("E2-combo", "CLAHE 2/4 + tracker assoc 200, expand 2.5")) or {}).get("metrics", {})
     btr = (E.get(("E4", "baseline")) or {}).get("metrics", {})
+    pp = (E.get(("FINAL-paired", "BASELINE vs FINAL detection on 13 consecutive frames 841.11-841.51 s")) or {}).get("metrics", {})
     ftr = Fx.get("tracker_final", {})
 
     def crab(d):
@@ -227,6 +229,8 @@ def top_sections(final: dict) -> list[str]:
          "| Metric | BASELINE (v1) | FINAL (v2) | Data |", "|---|---|---|---|",
          f"| Detection F1 at the annotated 14:01 instant (mean of 5 aligned frames) | {_fmt(bf1.get('f1'), '{:.3f}')} | **{_fmt(ff1.get('f1'), '{:.3f}')}** | tuning half, 36 tally points |",
          f"| … precision / recall | {_fmt(bf1.get('precision'), '{:.2f}')} / {_fmt(bf1.get('recall'), '{:.2f}')} | {_fmt(ff1.get('precision'), '{:.2f}')} / {_fmt(ff1.get('recall'), '{:.2f}')} | |",
+         f"| Detection F1, paired on 13 consecutive frames 841.11–841.51 s (FINAL better / worse on) | {_fmt(pp.get('mean_baseline_f1'), '{:.3f}')} | "
+         f"**{_fmt(pp.get('mean_final_f1'), '{:.3f}')}** ({_fmt(pp.get('final_better_frames'))} / {_fmt(pp.get('final_worse_frames'))} frames; sign test p = {_fmt(pp.get('sign_test_p_two_sided'))}) | tuning half; not significant |",
          f"| v1's single-frame score at 841.00 s: detections / P / R / F1 | {_fmt(bd.get('detections'))} / {_fmt(bd.get('precision'))} / {_fmt(bd.get('recall'))} / {_fmt(bd.get('f1'))} | "
          f"{_fmt(fd.get('detections'))} / {_fmt(fd.get('precision'))} / {_fmt(fd.get('recall'))} / {_fmt(fd.get('f1'))} | same frame as v1 (≈0.3 s before the annotated instant) |",
          f"| Count at 14:01, full tuning-half run (manual 36) | {_fmt(b14.get('bluesight_counted_fish'))} ({_fmt(b14.get('pct_difference'))} % diff) | **{_fmt(f14.get('bluesight_counted_fish'))}** ({_fmt(f14.get('pct_difference'))} % diff) | tuning half |",
@@ -240,6 +244,7 @@ def top_sections(final: dict) -> list[str]:
          f"| Review items: tuning half / demo half | {rb.get('tuning', {}).get('review_items', '–')} / {rb.get('demo', {}).get('review_items', '–')} | {rf.get('tuning', {}).get('review_items', '–')} / {rf.get('demo', {}).get('review_items', '–')} | estimated reviewer time = items × 10 s |",
          f"| Demo: green crab (held out) review item #1 status (similarity) | {bc[0]} | {fc[0]} | demo window 21:20–22:35 |",
          f"| Demo: after approving the crab, tracks recognised as crab / inside the crab's time span | {bc[1]} | {fc[1]} | demo window |",
+         f"| Demo: review items in the demo window | {Bdemo.get('review_items_before', '–')} | {Fdemo.get('review_items_before', '–')} | demo window |",
          f"| Full processing cost, s of compute per video minute (tuning / demo half) | {_fmt(Brt.get('tuning', {}).get('s_per_video_min'))} / {_fmt(Brt.get('demo', {}).get('s_per_video_min'))} | "
          f"{_fmt(Frt.get('tuning', {}).get('s_per_video_min'))} / {_fmt(Frt.get('demo', {}).get('s_per_video_min'))} | Apple M5, MPS |",
          f"| Energy per video minute, full processing (estimate, CPU+RAM only) | not measured in v1 | {_fmt(en.get('wh_per_video_min'), '{:.2f}')} Wh ({_fmt(en.get('co2_g_per_video_min'), '{:.2f}')} g CO2e) | CodeCarbon offline |",

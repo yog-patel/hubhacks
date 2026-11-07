@@ -16,7 +16,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 * Open **http://localhost:8501/?reviewer=Demo+Biologist**. The `reviewer` part fills in "Your name" in the sidebar; or type a name there.
 * To prove "offline", turn Wi-Fi off now. Everything below works without a network.
-* Expected starting state: **Species registry** = only *Small schooling fish*. **Review queue**: item 1 is the green crab (21:3x, *Possibly a species not in the registry*).
+* Expected starting state: **Species registry** = only *Small schooling fish*. **Review queue**, *Show items from* `T1 STAT2 411 · 1280-1355s`: **17 items**, and item 1 is the green crab (**21:32–21:48**, *Possibly a species not in the registry*, item ID `…_1280-1355s_t353`).
 
 ## 1. Murky water: enhancement and visibility (Analyze page, ~45 s)
 
@@ -29,7 +29,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 ## 2. Counts per species with confidence (~1 min)
 
 1. **Run the analysis** → **Custom window** → Start **1280**, Length **75** → **Analyze video**.
-   The five steps (Enhance → Detect → Track → Identify → Count) light up and turn into ticks. With a warm cache it finishes in about a minute. A first-ever run of this window takes a few minutes on the M5.
+   The five steps (Enhance → Detect → Track → Identify → Count) light up and turn into ticks. With a warm cache (after `reset_demo.py`) it finishes in **about 10–40 s**. A first-ever run of this window takes about 3–4 minutes on the M5.
 2. The green message: *Finished in … on this computer (Apple M5 …). External network connections during the run: 0.* Three summary cards follow.
 3. Click **See full results**. Point at:
    * the four cards: **Fish counted** (MeanCount), **Species found**, **Items to review**, **Footage with low visibility**;
@@ -39,23 +39,23 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 ## 3. A held-out species is flagged as unfamiliar instead of mislabelled (~1 min)
 
-1. Sidebar **Review queue (N)**. The counter reads **0 of N reviewed**.
-2. Item 1: red **! Unfamiliar** badge, **Possibly a species not in the registry**, about **21:32–21:47**. Play the **evidence clip**: the crab is boxed in orange. **Best views of this fish** shows the crab.
-   **Closest registry matches**: *Small schooling fish* with a short bar, **"no match"**, well left of both threshold marks.
+1. Sidebar **Review queue**. *Show items from* is the 1280-1355s analysis; the counter reads **0 of 17 reviewed**.
+2. Item 1: red **! Unfamiliar** badge, **Possibly a species not in the registry**, **21:32–21:48**. Play the **evidence clip**: the crab is boxed in orange. **Best views of this fish** shows the crab.
+   **Closest registry matches**: *Small schooling fish* **0.45 · no match**, well left of both threshold marks (0.68 and 0.77).
    *Say:* the only registry species is the schooling fish. The crab was deliberately held out, and BlueSight says "I don't know this" instead of calling it a fish.
 
 ## 4. Approve it, and see it in the registry (~45 s)
 
 1. On item 1, type **European green crab** in *Species name*. Click outside the box, then press **N** (or click **New species**).
-   A toast confirms it, the counter moves to **1 of N reviewed**, and the next item appears. (Shortcuts: `N` new · `E` existing · `X` reject · `J` skip · `K` back.)
+   A toast confirms it, the counter moves to **1 of 17 reviewed**, and the next item appears. (Shortcuts: `N` new · `E` existing · `X` reject · `J` skip · `K` back.)
 2. Sidebar **Species registry**: a **European green crab** card with the green **★ New · added in review** badge, **Approved by Demo Biologist**, today's date, and 5 reference images (the crab crops). No retraining: the prototype was rebuilt instantly.
 
 ## 5. Re-run: the new species is recognised (~1 min)
 
-1. **Analyze** → same Custom window (1280 / 75) → **Analyze video** (cached, about a minute).
+1. **Analyze** → same Custom window (1280 / 75) → **Analyze video** (cached, about 40 s).
 2. **See full results**: **Species found** now includes **European green crab**, and the species table has a *European green crab* row. In the protocol subsamples it is counted as an **invertebrate**, not in total fish.
-3. The second crab track (around 21:43–21:48), which nobody reviewed, is now recognised automatically.
-   *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches (EVALUATION.md, demo section). The fix is the review loop: confirm more crab examples with **Existing species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
+3. Two more crab tracks that nobody reviewed (**21:29–21:42** and **21:35–21:48**) are now recognised automatically (EVALUATION.md §5b).
+   *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches. In the rehearsal 2 of the 5 tracks recognised as crab were outside the crab's walk (v1: 8 of 10). The fix is the review loop: confirm more crab examples with **Existing species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
 
 ## 6. How we know it's local (30 seconds, Model & privacy page)
 
@@ -80,3 +80,19 @@ In the Review queue, open an item that shows only the pole or sand → **Reject:
 * The app looks stale → refresh the browser. Logs are in `outputs/logs/bluesight.log`.
 * No video plays → the clips are H.264 (hardware-encoded) and play in Chrome and Safari.
 * A keyboard shortcut doesn't fire → click on an empty part of the page first (shortcuts are ignored while typing in a box).
+
+## Rehearsal record (`scripts/demo_check.py`, 2026-11-07, Apple M5, after `reset_demo.py`)
+
+13/13 checks passed through the real app (screenshots in `outputs/screenshots/demo/`):
+
+| Step | Check | Result |
+|---|---|---|
+| 1 | murky frame (7:00) labelled "too murky" | PASS |
+| 2 | demo window analysed in the app; 0 external network connections | PASS (12 s, cached) |
+| 3 | results page shows counts by species | PASS |
+| 4 | review item #1 is unfamiliar and inside the crab's walk | PASS (21:32–21:48) |
+| 4 | approved with the `N` shortcut as "European green crab" | PASS |
+| 6 | registry shows it with the "New · added in review" badge, approved by Demo Biologist | PASS |
+| 7 | re-run in the app; 0 external network connections | PASS (43 s) |
+| 8 | results list European green crab | PASS |
+| 9 | Model & privacy: "0 external network calls during the last run", offline mode on | PASS |
