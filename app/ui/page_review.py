@@ -106,13 +106,13 @@ def page() -> None:
                     T.similarity_bars(top3, float(th["T_KNOWN"]), float(th["T_UNKNOWN"])))
         if crops:
             st.html('<h4 style="margin:4px 0 6px">Best views of this fish</h4>')
-            cols = st.columns(5)
+            cols = st.container(key="crops").columns(5)
             for c, p in zip(cols, crops):
                 c.image(str(p), width="stretch")
 
         st.divider()
         st.html(f'<h4 style="margin:0 0 4px">What is it?</h4><p class="bs-small" style="margin:0 0 8px">Shortcuts: '
-                f'{T.kbd("N")} new species · {T.kbd("E")} existing species · {T.kbd("R")} reject · '
+                f'{T.kbd("N")} new species · {T.kbd("E")} existing species · {T.kbd("X")} reject · '
                 f'{T.kbd("J")} skip · {T.kbd("K")} back</p>')
         ok = bool(C.reviewer())
         b1, b2, b3 = st.container(key="decide").columns(3, gap="medium")
@@ -145,7 +145,7 @@ def page() -> None:
         with b3:
             st.html('<p class="bs-small" style="margin:0 0 6px">Sand, the pole, debris or a shadow?</p>')
             if st.button("Reject: not a fish", key=f"rj_{f['flag_id']}", icon=":material/block:", width="stretch",
-                         shortcut="R", disabled=not ok,
+                         shortcut="X", disabled=not ok,
                          help="Exclude it from counts. Similar items are rejected automatically on the next run."):
                 record_decision(f, "reject", None)
                 st.toast("Rejected. It won't be counted, and similar items will be filtered next time.", icon=":material/block:")
@@ -166,14 +166,15 @@ def page() -> None:
         cols = st.columns(3, gap="medium")
         for j, (i, x) in enumerate(rest):
             t3 = json.loads(x["top3"] or "[]")
-            with cols[j % 3], st.container(border=True):
+            with cols[j % 3], st.container(border=True, key=f"upnext_{j}"):
                 cps = sorted(Path(x["folder"]).glob("crop_*.jpg"))
                 if cps:
                     st.image(str(cps[0]), width="stretch")
-                st.html(f'<div style="display:flex;gap:6px;flex-wrap:wrap">{T.badge(x["status"])}</div>'
-                        f'<p style="margin:6px 0 0;font-weight:600">{T.esc(title_for(x, t3))}</p>'
-                        f'<p class="bs-small" style="margin:0">{C.fmt_t(x["start_s"])}–{C.fmt_t(x["end_s"])} · best match '
-                        f'{(t3[0]["similarity"] if t3 else 0):.2f} · visibility {x["visibility"]:.2f}</p>')
+                bm = (f'best match {t3[0]["similarity"]:.2f} ({T.esc(t3[0]["species"].replace("_", " "))})' if t3
+                      else "no registry match")
+                st.html(f'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">{T.badge(x["status"])}'
+                        f'<b style="font-size:16px">{C.fmt_t(x["start_s"])}–{C.fmt_t(x["end_s"])}</b></div>'
+                        f'<p class="bs-small" style="margin:6px 0 0">{bm} · visibility {x["visibility"]:.2f}</p>')
                 if st.button("Review this one", key=f"go_{x['flag_id']}", width="stretch"):
                     st.session_state["review_cursor"] = i
                     st.rerun()

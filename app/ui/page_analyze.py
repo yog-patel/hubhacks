@@ -1,6 +1,7 @@
 """Analyze: choose or drop in a video, preview enhancement + visibility, run the pipeline with clear steps."""
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -20,12 +21,12 @@ log = get_logger("app")
 
 
 @st.cache_data(show_spinner=False, max_entries=64)
-def preview_frame(video: str, t: float, enhance_cfg_items: tuple) -> tuple:
+def preview_frame(video: str, t: float, enhance_cfg_json: str) -> tuple:
     frame = read_frame_at(video, t)
     if frame is None:
         return None, None, None
     small, _ = resize_width(frame, 960)
-    ecfg = dict(enhance_cfg_items)
+    ecfg = json.loads(enhance_cfg_json)
     return small, enhance_frame(small, ecfg), visibility_score(small, ecfg)
 
 
@@ -46,8 +47,7 @@ def page() -> None:
     T.header("Step 1 of 3", "Analyze a survey video",
              "BlueSight enhances the footage, finds and follows each fish, compares it with the species registry and "
              "counts it using Coastal Action's protocol. Anything it is unsure about goes to your review queue.")
-    st.html(C.local_badge(compact=True))
-    st.write("")
+    st.html(C.local_badge())
 
     vdir = path(cfg, "videos_dir")
     vids = sorted(p for p in vdir.glob("*") if p.suffix.lower() in VIDEO_EXTS) if vdir.exists() else []
@@ -95,8 +95,7 @@ def page() -> None:
         t = st.slider("Preview moment (seconds into the video)", 0.0, float(max(1.0, info.duration_s - 1)),
                       float(min(420.0, info.duration_s / 3)), 1.0, key="preview_t",
                       help="Try 420 (7:00, very hazy) and 1297 (21:37, a green crab beside the pole).")
-        small, enh, v = preview_frame(str(video), float(t), tuple(sorted((k, str(x) if isinstance(x, (list, dict)) else x)
-                                                                        for k, x in cfg["enhance"].items())))
+        small, enh, v = preview_frame(str(video), float(t), json.dumps(cfg["enhance"], sort_keys=True))
         if small is None:
             st.error("Couldn't read a frame at that moment. Try a slightly earlier time.")
         else:
@@ -182,7 +181,7 @@ def show_summary(rep: dict, secs: float | None) -> None:
     st.success(msg)
     pend = rep.get("review_items_packaged", rep.get("review_items", 0))
     T.cards([
-        {"k": "Fish counted (MeanCount)", "v": f"{rep['MeanCount_total_fish']:.1f}", "d": "mean fish per 60-second subsample", "tone": "info"},
+        {"k": "Fish counted", "v": f"{rep['MeanCount_total_fish']:.1f}", "d": "MeanCount: mean fish per 60-s subsample", "tone": "info"},
         {"k": "Items for you to review", "v": pend, "d": "unfamiliar or uncertain", "tone": "attn" if pend else "ok"},
         {"k": "Footage too murky", "v": f"{100 * rep['visibility']['fraction_below_v_min']:.0f}", "unit": "%",
          "d": "of sampled frames below the visibility threshold"},

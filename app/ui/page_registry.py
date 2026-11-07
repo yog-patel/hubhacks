@@ -38,7 +38,7 @@ def page() -> None:
                                          (r["name"],))]
         imgs = [p for p in imgs if Path(p).exists()]
         is_new = r["source"] == "approved"
-        with cols[i % 3], st.container(border=True):
+        with cols[i % 3], st.container(border=True, key=f"spcard_{i}"):
             if imgs:
                 st.image(imgs[0], width="stretch")
             else:
@@ -59,5 +59,5 @@ def page() -> None:
                 st.image(imgs[1:7], width=64)
     if held:
         st.caption("Held out on purpose, to test that unfamiliar species get flagged: "
-                   + ", ".join(h.replace("_", " ") for h in held)
+                   + ", ".join(h.replace("_", " ").capitalize() for h in held)
                    + ". They are never loaded from the labelled photos; they only appear here if a reviewer approves them.")

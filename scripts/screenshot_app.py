@@ -16,7 +16,7 @@ from pathlib import Path
 from playwright.sync_api import Page, sync_playwright
 
 V1_PAGES = ["Analyze", "Results", "Review queue", "Species registry"]
-V2_PAGES = {"analyze": "Analyze", "results": "Results", "review": "Review queue", "registry": "Species registry",
+V2_PAGES = {"": "Analyze", "results": "Results", "review": "Review queue", "registry": "Species registry",
             "privacy": "Model & privacy"}
 
 
@@ -77,7 +77,7 @@ def main() -> None:
             for i, (slug, name) in enumerate(V2_PAGES.items(), start=1):
                 page.goto(f"{a.url}/{slug}?reviewer={a.reviewer.replace(' ', '+')}")
                 settle(page, extra=3.0)
-                f = out / f"{i}_{slug}{a.suffix}.png"
+                f = out / f"{i}_{slug or 'analyze'}{a.suffix}.png"
                 full_shot(page, f, a.width)
                 print("saved", f)
         browser.close()

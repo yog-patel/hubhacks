@@ -5,7 +5,7 @@ import base64
 
 import cv2
 import numpy as np
-import streamlit.components.v1 as components
+import streamlit as st
 
 
 def _b64(img_bgr: np.ndarray) -> str:
@@ -18,8 +18,7 @@ def before_after(original_bgr: np.ndarray, enhanced_bgr: np.ndarray, left_label:
     """Drag (or use the arrow keys on) the handle to compare the two images."""
     h, w = original_bgr.shape[:2]
     a, b = _b64(original_bgr), _b64(enhanced_bgr)
-    frame_h = height or int(round(720 * h / w)) + 64
-    components.html(f"""
+    st.iframe(f"""<!doctype html><html><body style="margin:0">
 <div id="c" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;max-width:720px">
   <div id="wrap" style="position:relative;width:100%;aspect-ratio:{w}/{h};overflow:hidden;border-radius:12px;border:1px solid #C9D6DF;touch-action:none;cursor:ew-resize">
     <img src="data:image/jpeg;base64,{b}" alt="{right_label} frame" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
@@ -44,4 +43,4 @@ wrap.addEventListener('pointerdown',e=>{{drag=true;wrap.setPointerCapture(e.poin
 wrap.addEventListener('pointermove',e=>{{if(drag)pos(e);}});
 wrap.addEventListener('pointerup',()=>drag=false);
 window.addEventListener('resize',size);size();
-</script>""", height=frame_h)
+</script></body></html>""", height=height or "content")

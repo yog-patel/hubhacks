@@ -46,7 +46,13 @@ h2{ font-size:28px !important; line-height:1.25 !important; font-weight:650 !imp
 h3{ font-size:22px !important; line-height:1.3 !important; font-weight:600 !important; }
 h4{ font-size:18px !important; line-height:1.35 !important; font-weight:600 !important; }
 p, li, label, [data-testid="stMarkdownContainer"]{ font-size:16px; line-height:1.55; }
-[data-testid="stCaptionContainer"], .bs-small{ font-size:14px !important; color:var(--muted) !important; line-height:1.5; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p, .bs-small{ font-size:14px !important; color:var(--muted) !important;
+  opacity:1 !important; line-height:1.5; }
+[data-testid="stWidgetLabel"] p{ font-size:15px !important; font-weight:600; color:var(--ink) !important; }
+/* image crops: same height, nothing stretched */
+.st-key-crops [data-testid="stImage"] img{ height:120px; width:100%; object-fit:contain; background:var(--tint); border-radius:8px; }
+[class*="st-key-upnext"] [data-testid="stImage"] img{ height:150px; width:100%; object-fit:cover; border-radius:8px; }
+[class*="st-key-spcard"] [data-testid="stImage"]:first-of-type img{ border-radius:8px; }
 /* visible keyboard focus everywhere (WCAG 2.4.7) */
 button:focus-visible, a:focus-visible, input:focus-visible, [role="radio"]:focus-visible, [tabindex]:focus-visible{
   outline:3px solid var(--primary) !important; outline-offset:2px !important; }
@@ -88,7 +94,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, [role="radio"]:focus
 .bs-sim .tick{ position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink); }
 .bs-sim .legend{ font-size:13px; color:var(--muted); margin-top:2px; }
 /* stepper */
-.bs-steps{ display:flex; gap:var(--s2); flex-wrap:wrap; margin:var(--s3) 0 var(--s4); padding:0; list-style:none; }
+.bs-steps{ display:flex; gap:var(--s2); flex-wrap:wrap; margin:var(--s3) 0 var(--s4) !important; padding:0 !important; list-style:none; }
+.bs-steps li{ margin:0 !important; }
 .bs-steps li{ flex:1 1 140px; display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--r-ctl);
   border:1px solid var(--border); background:var(--card); font-size:15px; color:var(--muted); }
 .bs-steps .n{ width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
@@ -103,8 +110,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, [role="radio"]:focus
 /* species gallery */
 .bs-sp-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
 .bs-sp-name{ font-size:20px; font-weight:650; margin:0; }
-.bs-meta{ display:grid; grid-template-columns:auto 1fr; gap:2px 12px; font-size:14px; margin:var(--s2) 0; }
-.bs-meta dt{ color:var(--muted); } .bs-meta dd{ margin:0; color:var(--ink); }
+.bs-meta{ margin:var(--s2) 0 !important; padding:0 !important; display:grid; grid-template-columns:max-content 1fr; white-space:nowrap; gap:2px 12px; font-size:14px; margin:var(--s2) 0; }
+.bs-meta dt{ color:var(--muted); } .bs-meta dd{ margin:0; color:var(--ink); white-space:normal; overflow-wrap:anywhere; }
 /* review */
 .bs-progress{ display:flex; align-items:center; gap:var(--s3); font-size:15px; color:var(--ink-2); }
 .bs-progress .bar{ flex:1; height:10px; border-radius:5px; background:var(--tint); border:1px solid var(--border); overflow:hidden; }
@@ -179,7 +186,7 @@ def similarity_bars(top3: list[dict], t_known: float, t_unknown: float) -> str:
         s = max(0.0, min(1.0, float(m["similarity"])))
         verdict = "close match" if s >= t_known else ("partial match" if s >= t_unknown else "no match")
         rows.append(
-            f'<div class="bs-sim"><div class="row"><span>{esc(m["species"].replace("_", " "))}</span>'
+            f'<div class="bs-sim"><div class="row"><span>{esc(m["species"].replace("_", " ").capitalize())}</span>'
             f'<span><b>{s:.2f}</b> · {verdict}</span></div>'
             f'<div class="track" role="img" aria-label="similarity {s:.2f} of 1">'
             f'<div class="fill" style="width:{s * 100:.1f}%"></div>'

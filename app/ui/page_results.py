@@ -49,9 +49,11 @@ def timeline_data(db_path: str, run_id: str, generated_at: str) -> tuple[pd.Data
     return cnt, fr
 
 
-def timeline(cnt: pd.DataFrame, fr: pd.DataFrame, v_min: float, subsamples: list[float]) -> alt.VConcatChart:
-    """Two charts on one shared time axis (never a dual y-axis): fish counted per frame, and visibility."""
-    x = alt.X("minute:Q", title="Video time (minutes)", scale=alt.Scale(zero=False, nice=False),
+def timeline(cnt: pd.DataFrame, fr: pd.DataFrame, v_min: float, subsamples: list[float]) -> tuple[alt.Chart, alt.Chart]:
+    """Two charts stacked on the same time axis (never a dual y-axis): fish counted per frame, and visibility.
+    Both use the same fixed x domain, so they line up exactly."""
+    dom = [float(fr.minute.min()), float(fr.minute.max())]
+    x = alt.X("minute:Q", title="Video time (minutes)", scale=alt.Scale(domain=dom, zero=False, nice=False),
               axis=alt.Axis(grid=False, labelFontSize=13, titleFontSize=14, titleColor="#3E5466", labelColor="#3E5466"))
     hover = alt.selection_point(fields=["minute"], nearest=True, on="pointerover", clear="pointerout", empty=False)
     base_c = alt.Chart(cnt)
@@ -65,6 +67,7 @@ def timeline(cnt: pd.DataFrame, fr: pd.DataFrame, v_min: float, subsamples: list
         tooltip=[alt.Tooltip("t_s:Q", title="Seconds", format=".1f"), alt.Tooltip("counted:Q", title="Fish counted")]
     ).add_params(hover)
     sub = pd.DataFrame({"minute": [s / 60 for s in subsamples]})
+    sub = sub[(sub.minute >= dom[0]) & (sub.minute <= dom[1])]
     subs = alt.Chart(sub).mark_rule(color="#8197A6", strokeDash=[2, 3]).encode(x="minute:Q")
     top = (subs + area + line + pts).properties(height=190, title=alt.Title(
         "Fish counted per sampled frame", subtitle="Dotted lines: the protocol's 60-second subsample points",
@@ -72,23 +75,31 @@ def timeline(cnt: pd.DataFrame, fr: pd.DataFrame, v_min: float, subsamples: list
 
     base_v = alt.Chart(fr)
     low = base_v.transform_filter(alt.datum.visibility < v_min).mark_bar(color="#C9D1D8", width=alt.RelativeBandSize(1)).encode(
-        x=x, y=alt.value(0), y2=alt.value(150))
+        x=x, y=alt.datum(0), y2=alt.datum(1))
     vline = base_v.mark_line(color="#0B5C7A", strokeWidth=2).encode(
         x=x, y=alt.Y("visibility:Q", title="Visibility (0–1)", scale=alt.Scale(domain=[0, 1]),
                      axis=alt.Axis(labelFontSize=13, titleFontSize=14, titleColor="#3E5466", labelColor="#3E5466",
                                    gridColor="#E3EAEF", tickCount=3)))
+    vhover = alt.selection_point(fields=["minute"], nearest=True, on="pointerover", clear="pointerout", empty=False)
     vpts = base_v.mark_point(size=60, filled=True, color="#0B5C7A").encode(
-        x=x, y="visibility:Q", opacity=alt.condition(hover, alt.value(1), alt.value(0)),
+        x=x, y="visibility:Q", opacity=alt.condition(vhover, alt.value(1), alt.value(0)),
         tooltip=[alt.Tooltip("t_s:Q", title="Seconds", format=".1f"), alt.Tooltip("visibility:Q", title="Visibility", format=".2f")]
-    ).add_params(alt.selection_point(fields=["minute"], nearest=True, on="pointerover", clear="pointerout", empty=False, name="hv"))
+    ).add_params(vhover)
     rule = alt.Chart(pd.DataFrame({"v": [v_min]})).mark_rule(color="#B42318", strokeDash=[6, 4], strokeWidth=1.5).encode(y="v:Q")
     rule_lbl = alt.Chart(pd.DataFrame({"v": [v_min], "t": [f"identification threshold {v_min:.2f}"]})).mark_text(
         align="left", dx=4, dy=-7, fontSize=12, color="#B42318").encode(y="v:Q", x=alt.value(0), text="t:N")
     bot = (low + vline + vpts + rule + rule_lbl).properties(height=150, title=alt.Title(
         "Visibility", subtitle="Grey bands: too murky to identify species; fish there are counted as 'Unable to ID'",
         fontSize=15, subtitleFontSize=13, subtitleColor="#566B7C", anchor="start"))
-    return alt.vconcat(top, bot, spacing=24).resolve_scale(x="shared").configure_view(stroke=None).configure(
-        font="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif")
+    font = "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif"
+    return (top.configure_view(stroke=None).configure(font=font),
+            bot.configure_view(stroke=None).configure(font=font))
+
+
+def pct(f: float) -> str:
+    """Share as a percentage; small non-zero shares are never rounded down to a misleading 0."""
+    p = 100 * float(f)
+    return "0" if p == 0 else ("<1" if p < 1 else f"{p:.0f}")
 
 
 def species_table(rep: dict) -> pd.DataFrame:
@@ -102,10 +113,10 @@ def species_table(rep: dict) -> pd.DataFrame:
         "Species or category": [nice_label(l) for l in sp.label],
         "MaxN": sp.MaxN,
         "MeanCount": sp.MeanCount,
-        "MeanCount (all frames)": sp.MeanCount_all_sampled_frames,
+        "Mean (all frames)": sp.MeanCount_all_sampled_frames,
         "Confidence": sp.confidence,
         "Tracks": sp.n_tracks,
-        "Reviewer-verified": sp.verified_tracks,
+        "Verified": sp.verified_tracks,
     })
     return out
 
@@ -137,16 +148,16 @@ def page() -> None:
             f'<span>Window <b>{C.fmt_t(w["start_s"])}–{C.fmt_t(w["end_s"])}</b> ({w["duration_min"]:.1f} min)</span>'
             f'<span>Subsamples <b>{rep["protocol"]["n_subsamples"]}</b></span><span>Runtime <b>{rep["runtime_s"]:.0f} s</b></span></div>')
     T.cards([
-        {"k": "Fish counted (MeanCount)", "v": f"{rep['MeanCount_total_fish']:.1f}", "tone": "info",
-         "d": f"mean fish per subsample · busiest subsample {maxn_total}"},
+        {"k": "Fish counted", "v": f"{rep['MeanCount_total_fish']:.1f}", "tone": "info",
+         "d": f"MeanCount: mean fish per 60-s subsample · busiest subsample {maxn_total}"},
         {"k": "Species found", "v": len(known_species), "tone": "info",
          "d": ", ".join(nice_label(s["label"]) for s in known_species) or "no registry species matched"},
         {"k": "Items to review", "v": pending, "tone": "attn" if pending else "ok",
          "d": "waiting in the review queue" if pending else "all reviewed"},
-        {"k": "Footage with low visibility", "v": f"{100 * vis['fraction_below_v_min']:.0f}", "unit": "%",
+        {"k": "Footage with low visibility", "v": pct(vis["fraction_below_v_min"]), "unit": "%",
          "tone": "attn" if vis["fraction_below_v_min"] > 0.25 else "ok", "d": f"below {th['V_MIN']:.2f} · mean visibility {vis['mean']:.2f}"},
     ])
-    if vis["fraction_below_v_min"] > 0:
+    if vis["fraction_below_v_min"] >= 0.005:
         st.warning(f"{100 * vis['fraction_below_v_min']:.0f}% of this footage is too murky to identify species. Fish seen there are "
                    "counted in 'Unknown/Unable to ID due to visibility', so treat totals as a lower bound, not as zero fish.",
                    icon=":material/visibility_off:")
@@ -162,12 +173,12 @@ def page() -> None:
             "Species or category": st.column_config.TextColumn(width="large"),
             "MaxN": st.column_config.NumberColumn(help="Most individuals seen in any single sampled frame.", format="%d"),
             "MeanCount": st.column_config.NumberColumn(help="Protocol MeanCount: mean count over the 60-second subsamples.", format="%.2f"),
-            "MeanCount (all frames)": st.column_config.NumberColumn(help="Mean count over every sampled frame (2 per second).", format="%.2f"),
+            "Mean (all frames)": st.column_config.NumberColumn(help="Mean count over every sampled frame (2 per second).", format="%.2f"),
             "Confidence": st.column_config.ProgressColumn(help="Mean similarity of these tracks to the species prototype (0–1). "
                                                           "Blank for the visibility column: nothing was identified.",
                                                           min_value=0.0, max_value=1.0, format="%.2f"),
             "Tracks": st.column_config.NumberColumn(help="Individual fish tracks (each fish keeps one ID)."),
-            "Reviewer-verified": st.column_config.NumberColumn(help="Tracks whose species a biologist confirmed in review."),
+            "Verified": st.column_config.NumberColumn(help="Tracks whose species a biologist confirmed in review."),
         })
         notes = [f"<b>{T.esc(k)}</b>: {v}" for k, v in LABEL_NOTES.items() if k in set(r["label"] for r in rep["species"])]
         st.html('<p class="bs-small">' + "<br>".join(notes + [
@@ -178,7 +189,13 @@ def page() -> None:
     st.subheader("Fish and visibility over time", anchor=False)
     cnt, fr = timeline_data(str(C.db().path), rep["run_id"], rep["generated_at"])
     if len(fr):
-        st.altair_chart(timeline(cnt, fr, float(th["V_MIN"]), [s["subsample_t_s"] for s in rep["subsamples"]]), width="stretch")
+        c_top, c_bot = timeline(cnt, fr, float(th["V_MIN"]), [s["subsample_t_s"] for s in rep["subsamples"]])
+        peak = int(cnt.counted.max()) if len(cnt) else 0
+        st.altair_chart(c_top, width="stretch", height=300,
+                        alt=f"Line chart of fish counted per sampled frame over the analysis window; peak {peak} fish.")
+        st.altair_chart(c_bot, width="stretch", height=250,
+                        alt=f"Line chart of visibility (0 to 1) over the analysis window, mean {vis['mean']:.2f}, "
+                            f"with the identification threshold {th['V_MIN']:.2f} marked.")
         with st.expander("Show this chart as a table"):
             st.dataframe(cnt.merge(fr, on=["t_s", "minute"]).rename(columns={"t_s": "Seconds", "counted": "Fish counted",
                                                                                "visibility": "Visibility"}).drop(columns="minute"),

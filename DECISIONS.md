@@ -75,3 +75,38 @@ The Streamlit UI was built after the first real pipeline outputs existed, becaus
 
 ## D15. Learning from "Reject / not a fish"
 The motion detector picks up the swaying measuring pole and sand caustics. Their frequency is too low (≤ 10% of frames per cell) for a static mask. Instead, every item a reviewer rejects becomes a **negative example**. On later runs, a *flagged* track more similar to a rejected item (cosine ≥ `identify.reject_similarity`, 0.90) than to any species is auto-rejected and not counted (`auto_reject()` in identify.py). Known species are never affected and nothing is ever auto-accepted, so the "no species without human approval" rule holds.
+
+---
+
+# v2 decisions (branch `v2-ui-model`, 2026-11-07)
+
+## D16. UI: skills used, design system, accessibility
+**Skills loaded and followed** (no `frontend-design` skill was available in this environment):
+
+| Skill | How it was used |
+|---|---|
+| `design:design-system` | Defined tokens before any page: one palette, a type scale (12/14/16/18/22/28/34 px), a 4-8-12-16-24-32-48 px spacing scale, 8 px control / 12 px card radii, and reusable components (status badge, visibility badge, metric card, similarity bars, stepper, empty state). They live in one file, `app/ui/theme.py`, mirrored in `.streamlit/config.toml`. |
+| `design:accessibility-review` | WCAG 2.1 AA checks: contrast computed for every text/background pair (lowest pair: muted text on the tinted background, 4.73:1; body text 16.3:1; white on primary 7.4:1). Status always carries an icon and a word as well as a colour (1.4.1). Visible 3 px focus ring (2.4.7). Buttons ≥ 44 px tall, decision buttons 56 px (2.5.5). Every input has a visible label (3.3.2). Charts have a text `alt` and a "show as table" view. |
+| `design:ux-copy` | Plain verbs on buttons ("Analyze video", "New species", "Reject: not a fish", "Skip for now"). Empty states say what the page is for, why it's empty and what to do next. Errors say what happened and how to fix it. Biologist vocabulary is used: MeanCount, MaxN, subsample, "Unable to ID due to visibility". |
+| `design:design-critique` | Each screenshot round (`outputs/screenshots/after/round0…`) was critiqued for hierarchy, consistency and usability, then fixed (see D18). |
+| `dataviz` | Never a dual y-axis: fish count and visibility are two stacked charts on the same time domain. One series per chart, so no legend box; titles name them. Thresholds are drawn as labelled rules. Recessive grid, hover tooltips, a table view, and status colours kept out of the series palette. |
+
+**Palette** (ocean, calm, trustworthy): primary deep-sea teal `#0B5C7A`, ink `#0F2230`, sea-mist background `#F4F7F9`. Status colours are reserved: known green `#1B6B45`, uncertain amber `#8A5300`, unfamiliar red `#B42318`, low visibility slate `#4F5B66`.
+**Fonts:** the system font stack. Web fonts were rejected because loading them means the browser contacts a font CDN, which conflicts with "everything runs locally".
+**Light theme only.** The custom CSS and the status colours are validated against the light surfaces. A dark theme would need its own validated steps, and there was no time to do that properly.
+
+## D17. Working copy setup
+This Desktop folder was a fresh clone (no resources, venv, models, outputs). The original working copy at `~/Documents/hubhacks` (same commit `d31133e`) was **not modified**.
+* `HubHacks Resources` here is a **symlink** to the read-only originals in the Documents copy (gitignored). `scripts/prepare_resources.py` uses `rglob`, which doesn't follow a symlinked directory, so the already-built `data/` layout (relative symlinks plus derived crops) was copied from the Documents copy instead of being rebuilt.
+* `models/` and `outputs/cache` were copied, so no model was re-downloaded and no detection was recomputed for the baseline.
+* A new `.venv` was created with uv, pinned to the exact package versions of the original venv. Added: `codecarbon` (energy estimate, runtime), `playwright` (screenshots, dev only).
+
+## D18. Stay in Streamlit
+Streamlit was kept. A FastAPI + web frontend would mean re-implementing upload, video playback, tables, charts and state for no gain the users would notice. Streamlit 1.67 provides what was needed:
+* `st.navigation`, so pages have URLs (`/results`, `/review`, …).
+* `st.button(shortcut=…)` for keyboard shortcuts.
+* Keyed containers for scoped CSS.
+* `st.iframe` for a self-contained before/after slider (inline JS, nothing fetched).
+The pipeline (`src/bluesight/`) is untouched by the UI work; the UI lives in `app/ui/`.
+
+Review-queue interaction: **one focused card at a time** (plus a compact "Up next" grid) instead of v1's wall of 28+ cards with 28 videos. This gives a progress counter ("3 of 30 reviewed") and a fast keyboard flow: `N` new species, `E` existing, `X` reject, `J` skip, `K` back. `R` would be the natural key for Reject, but Streamlit reserves `R` (rerun) and `C`; `X` matches the ✕ icon. Shortcuts are ignored while typing in the species-name box (tested with Playwright).

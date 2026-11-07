@@ -127,9 +127,7 @@ def sidebar() -> None:
     if "reviewer" not in st.session_state:
         st.session_state["reviewer"] = qp.get("reviewer", "")
     with st.sidebar:
-        st.html('<div style="margin:4px 0 8px"><div style="font-size:22px;font-weight:700;color:#0F2230">BlueSight AI</div>'
-                '<div style="font-size:14px;color:#3E5466">See more. Disturb less. Protect better.</div></div>')
-        st.html(local_badge())
+        st.html(local_badge(compact=True))
         st.text_input("Your name (recorded with each review)", key="reviewer", placeholder="e.g. A. Biologist")
         n = pending_count()
         st.html(f'<p class="bs-small" style="margin:4px 0 0">{n} item{"s" if n != 1 else ""} waiting for review</p>')

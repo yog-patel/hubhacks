@@ -26,7 +26,7 @@ def load_config(path: str | os.PathLike | None = None) -> dict[str, Any]:
     cfg["_root"] = str(ROOT)
     cfg["_config_path"] = str(p)
     os.environ.setdefault("HF_HOME", str(ROOT / cfg["paths"]["model_cache_dir"]))
-    if cfg.get("runtime", {}).get("offline", True):
+    if cfg.get("runtime", {}).get("offline", True) and os.environ.get("BLUESIGHT_ALLOW_DOWNLOADS") != "1":
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
     return cfg

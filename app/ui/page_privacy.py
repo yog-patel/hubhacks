@@ -68,7 +68,7 @@ def page() -> None:
          "d": f"HF_HUB_OFFLINE={T.esc(os.environ.get('HF_HUB_OFFLINE', 'unset'))} · "
               f"TRANSFORMERS_OFFLINE={T.esc(os.environ.get('TRANSFORMERS_OFFLINE', 'unset'))}"},
         {"k": "App telemetry", "v": "Off" if usage is False else "On", "tone": "ok" if usage is False else "attn",
-         "d": f"Streamlit usage stats: {T.esc(usage)} · listening on {T.esc(addr)} only"},
+         "d": f"Streamlit usage statistics {'off' if usage is False else 'ON'} · app reachable from {T.esc(addr)} only"},
         {"k": "Last run", "v": f"{last['runtime_s']:.0f}" if last else "—", "unit": "s" if last else "",
          "d": (f"{T.esc(last['run_id'])}<br>" +
                (f"≈ {en['energy_wh']:.2f} Wh · {en['co2_g']:.2f} g CO₂e (estimate)" if en.get("energy_wh") is not None
