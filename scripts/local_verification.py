@@ -118,7 +118,9 @@ def main() -> None:
           "4. Analyze → *Custom window* → start 1280, length 75 → **Analyze video**. Then review an item in the Review queue and open "
           "the Species registry.",
           "5. Everything works. **Model & privacy** shows *0 external network calls during the last run*.",
-          "6. Command-line equivalent: `.venv/bin/python -m pytest tests/test_offline.py -s` (passes with Wi-Fi off too).", "",
+          "6. Command-line equivalent: `.venv/bin/python -m pytest tests/test_offline.py -s`. The test blocks the network itself, so it "
+          "does what turning Wi-Fi off does for BlueSight's process. (The physical Wi-Fi-off run was not performed by us; please do steps 1–5 "
+          "once on the demo laptop.)", "",
           "### 2. Network guard during real runs", "",
           "Every analysis records `network.external_connection_attempts` in its `report.json`.", "",
           "| Run | Generated | Mode | External attempts | Local connections | Runtime (s) |", "|---|---|---|---|---|---|"]
