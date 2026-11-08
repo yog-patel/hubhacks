@@ -254,8 +254,10 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
     run_id = f"{slug(vname)}__{int(start)}-{int(end)}s"
     run_dir = path(cfg, "runs_dir") / slug(vname) / f"{int(start)}-{int(end)}s"
     run_dir.mkdir(parents=True, exist_ok=True)
-    det_key = hashlib.md5(json.dumps([cfg["detector"], cfg["tracker"], cfg["sampling"], cfg["enhance"],
-                                      cfg["identify"]["best_crops"], info.n_frames]).encode()).hexdigest()[:10]
+    key_parts = [cfg["detector"], cfg["tracker"], cfg["sampling"], cfg["enhance"], cfg["identify"]["best_crops"], info.n_frames]
+    if cfg["detector"]["name"] == "fused":  # FishSpotter settings only matter (and only change the cache) when it runs
+        key_parts.append(cfg.get("fishspotter"))
+    det_key = hashlib.md5(json.dumps(key_parts).encode()).hexdigest()[:10]
     cdir = path(cfg, "cache_dir") / slug(vname) / f"{int(start)}-{int(end)}s_{det_key}"
     timings: dict[str, float] = {}
     log.info("run %s: window %.1f-%.1f s on %s", run_id, start, end, device)

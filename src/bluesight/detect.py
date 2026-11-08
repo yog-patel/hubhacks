@@ -185,6 +185,49 @@ class OWLv2Detector(Detector):
             yield fr, self.detect_image(fr.small)
 
 
+def fuse_boxes(motion: np.ndarray, spotter: np.ndarray, cfg: dict[str, Any]) -> np.ndarray:
+    """Combine motion and FishSpotter boxes for one frame.
+
+    * Large motion boxes (area >= ``large_area``: crabs, big fish) are kept; spotter peaks inside them are dropped.
+    * Small motion boxes that contain a spotter peak are replaced by the spotter boxes (splits merged schools).
+    * Motion boxes with no spotter peak inside are kept (a moving fish the spotter missed).
+    * All other spotter boxes are kept (fish that hold still are invisible to motion).
+    """
+    if not len(spotter):
+        return motion
+    if not len(motion):
+        return spotter
+    cx, cy = (spotter[:, 0] + spotter[:, 2]) / 2, (spotter[:, 1] + spotter[:, 3]) / 2
+    area = (motion[:, 2] - motion[:, 0]) * (motion[:, 3] - motion[:, 1])
+    inside = (cx[None] >= motion[:, :1]) & (cx[None] <= motion[:, 2:3]) & (cy[None] >= motion[:, 1:2]) & (cy[None] <= motion[:, 3:4])
+    large = area >= float(cfg["large_area"])
+    keep_spot = ~(inside & large[:, None]).any(0)
+    keep_motion = large | ~inside.any(1)
+    return np.concatenate([motion[keep_motion], spotter[keep_spot]]).astype(np.float32)
+
+
+class FusedDetector(Detector):
+    """Motion detector + FishSpotter on the same sampled frames, fused per frame with ``fuse_boxes``."""
+
+    def __init__(self, cfg: dict[str, Any], device: str) -> None:
+        from .config import ROOT
+        from .spotter import FishSpotter
+        from .enhance import enhance_frame
+
+        self.motion = MotionDetector(cfg["detector"]["motion"], cfg["enhance"], device)
+        self.spotter = FishSpotter(cfg["fishspotter"], device, ROOT)
+        self.fcfg = cfg["fishspotter"]
+        self.ecfg = cfg["enhance"] if cfg["fishspotter"].get("enhance_input", True) else None
+        self._enh = enhance_frame
+        self.name = "fused"
+        self.version = f"fused[{self.motion.version}+{self.spotter.version}+L{self.fcfg['large_area']}]"
+
+    def detect_stream(self, frames: Iterable[Frame]) -> Iterator[tuple[Frame, np.ndarray]]:
+        for fr, mboxes in self.motion.detect_stream(frames):
+            img = self._enh(fr.small, self.ecfg) if self.ecfg is not None else fr.small
+            yield fr, fuse_boxes(mboxes, self.spotter.detect(img), self.fcfg)
+
+
 def get_detector(cfg: dict[str, Any], name: str | None = None) -> Detector:
     """Build the configured detector."""
     from .config import resolve_device
@@ -193,6 +236,8 @@ def get_detector(cfg: dict[str, Any], name: str | None = None) -> Detector:
     device = resolve_device(cfg)
     if name == "motion":
         return MotionDetector(cfg["detector"]["motion"], cfg["enhance"], device)
+    if name == "fused":
+        return FusedDetector(cfg, device)
     if name == "owlv2":
         return OWLv2Detector(cfg["detector"]["owlv2"], device)
     raise ValueError(f"unknown detector {name}")

@@ -5,6 +5,7 @@ paths:
   resources_dir: "HubHacks Resources"      # originals, read-only
   raw_photos_dir: data/raw_photos          # zip extracted here (gitignored)
   videos_dir: data/videos                  # symlinks to original videos
+  training_dir: outputs/training/assisted  # frames + point labels saved by AI-assisted counting (FishSpotter retraining)
   reference_dir: data/reference_images     # <species>/ crops used to build the registry
   held_out_dir: data/held_out              # <species>/ crops kept OUT of the registry
   unsorted_dir: data/unsorted              # crops whose species could not be inferred confidently
@@ -41,6 +42,10 @@ sampling:
   crop_pad: 0.6           # padding around a box when cutting crops from the full-res frame
   annotated_width: 1280   # width of the annotated output video
 
+# AI-assisted counting on the protocol subsample frames (app page "Verify counts")
+assisted:
+  click_radius_px: 18       # a click this close to a mark removes it (px at process_width); otherwise it adds a fish
+
 # Coastal Action DRAFT FFH Video Analysis Protocol (overrides CLAUDE.md defaults; see DECISIONS.md)
 protocol:
   trim_start_s: 60          # discard first minute (sediment settling)
@@ -60,7 +65,7 @@ enhance:
   weights: {contrast: 0.4, sharpness: 0.3, haze: 0.3}
 
 detector:
-  name: motion              # motion | owlv2  (chosen by measured evaluation, see EVALUATION.md)
+  name: motion              # motion | fused | owlv2  (chosen by measured evaluation, see EVALUATION.md)
   motion:
     window_s: 8.0           # background = per-pixel median over +/- window
     step_s: 1.0             # spacing of background frames
@@ -75,6 +80,16 @@ detector:
     prompts: ["a photo of a fish", "a photo of a crab"]
     score_threshold: 0.10
     grid: 3                 # tile the frame grid x grid (fish are small)
+
+# FishSpotter: learned point detector trained on the biologists' tally dots (EVALUATION.md E9). Only used when
+# detector.name is "fused" (motion + FishSpotter). Measured: it did NOT beat motion alone, so it is off by default.
+fishspotter:
+  weights: models/fishspotter/fishspotter_v1.pt
+  score_threshold: 0.3      # fixed before the cross-station test
+  box_w: 40                 # fixed box size at process_width (fish here are all about the same size)
+  box_h: 24
+  enhance_input: true       # same CLAHE + gray-world enhancement as the rest of the pipeline
+  large_area: 4000          # fused: motion boxes at least this big (px at process_width) are kept whole (crabs)
 
 tracker:
   track_activation_threshold: 0.2
