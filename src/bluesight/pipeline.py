@@ -408,6 +408,8 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
     pc = C.protocol_counts(counts, points, float(pcfg["count_window_s"]))
     ftimes = C.protocol_frame_times(counts, points, float(pcfg["count_window_s"]))
     invert = set(cfg.get("invertebrate_species") or [])
+    # "Unconfirmed: probably <crab>?" is still an invertebrate, not a fish
+    invert |= {c for c in pc.columns if c.startswith("Unconfirmed: probably ") and c[22:].rstrip("?") in invert}
     fish_cols = [c for c in pc.columns if c not in invert]
     vis_t = frames.set_index(frames.t_s.round(3)).visibility
     sub_rows = []

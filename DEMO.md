@@ -1,4 +1,10 @@
-# DEMO: BlueSight AI (about 6½ minutes)
+# DEMO: BlueSight AI (about 8 minutes)
+
+> **v3 changes (2026-11-08):** in step 4 the species name is now a **picker**: type "green crab" and choose
+> **European green crab** from the Nova Scotia list (a red **watch-list** banner confirms it is invasive). New steps:
+> **2b Count check** and **5b Excel report with the watch-list alert**. Timings below were first measured on an M5;
+> on the M4 MacBook used on 2026-11-08 the demo window took 104 s the first time and 9.5 s cached, and the full
+> 15-minute protocol window took 9.8 min (EVALUATION.md → v3).
 
 **Video:** `T1-STAT2 411.MP4` (T1-STAT2, 10 Sept 2025, 35:47, 4K)
 **Demo window:** **21:20 → 22:35** (start **1280 s**, length **75 s**), in the demo half of the video, which was never used for tuning.
@@ -37,6 +43,18 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
    * **Fish and visibility over time**: two stacked charts on the same time axis, with the 60-second subsample points dotted, the identification threshold dashed, and grey bands where it's too murky;
    * **Original and enhanced** slider, the **annotated video** (green = known, yellow "?" = uncertain, red "NEW?" = unfamiliar), and the **Download** buttons (CSV in the protocol spreadsheet layout, JSON).
 
+## 2b. Count check: correct the AI instead of counting from scratch (~1 min)
+
+1. Sidebar **Count check**. Analysis = the 1280-1355s run; **Check the AI's marks**. The 21:20 subsample shows 82
+   numbered marks (yellow = identified fish, orange = probable, blue = too murky).
+2. In **Remove a whole category** pick **Too murky to identify (19)**: 19 marks are crossed out at once; *Your count*
+   drops to 63. Optionally remove a few more by number and add missed fish. **Save and next**.
+3. The cards update: **MeanCount 63 with your checks · AI alone 82**. *Say:* the AI alone misses faint fish and marks
+   some sand, so a person confirms each protocol frame; every correction is saved as training data
+   (*Save corrections as training data*).
+4. Optional: switch to **Blind count (quality control)**, type a count without seeing the marks, save: the toast shows
+   the % difference against the protocol's 6 % rule, and the *Blind-count agreement* card the 95 % target.
+
 ## 3. A held-out species is flagged as unfamiliar instead of mislabelled (~1 min)
 
 1. Sidebar **Review queue**. *Show items from* is the 1280-1355s analysis; the counter reads **0 of 17 reviewed**.
@@ -46,7 +64,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 ## 4. Approve it, and see it in the registry (~45 s)
 
-1. On item 1, type **European green crab** in *Species name*. Click outside the box, then press **N** (or click **New species**).
+1. On item 1, click *Species name*, type **green crab** and choose **European green crab** from the list, then press **N** (or click **New species**). A red **Watch-list species confirmed** banner explains why it matters (invasive in Nova Scotia).
    A toast confirms it, the counter moves to **1 of 17 reviewed**, and the next item appears. (Shortcuts: `N` new · `E` existing · `X` reject · `J` skip · `K` back.)
 2. Sidebar **Species registry**: a **European green crab** card with the green **★ New · added in review** badge, **Approved by Demo Biologist**, today's date, and 5 reference images (the crab crops). No retraining: the prototype was rebuilt instantly.
 
@@ -56,6 +74,16 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 2. **See full results**: **Species found** now includes **European green crab**, and the species table has a *European green crab* row. In the protocol subsamples it is counted as an **invertebrate**, not in total fish.
 3. Two more crab tracks that nobody reviewed (**21:29–21:42** and **21:35–21:48**) are now recognised automatically (EVALUATION.md §5b).
    *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches. In the rehearsal 2 of the 5 tracks recognised as crab were outside the crab's walk (v1: 8 of 10). The fix is the review loop: confirm more crab examples with **Existing species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
+
+## 5b. Survey details, alert and Excel (~45 s)
+
+1. On **Results**, the red banner **Watch-list species recorded: European green crab** is at the top.
+2. Open **Survey details**, tick *Water temperature recorded*, enter e.g. **14.5 °C**, pick the pole visibility, **Save**.
+3. Click **Download Excel report (protocol layout)**: sheet *Subsamples* has Total Fish Count, Invertebrate count, a
+   column per species and "Unknown/Unable to ID due to visibility"; *Summary* has MeanCount, MaxN, temperature,
+   alerts and "External network connections during the run: 0".
+4. Optional: **Species registry → Watch list**: enter a usual range for green crab (e.g. 5 to 12 °C, a demo value),
+   save, and Results shows an orange **outside its usual temperature range** alert for 14.5 °C.
 
 ## 6. How we know it's local (30 seconds, Model & privacy page)
 
