@@ -121,3 +121,15 @@ def test_density_dot_map_and_motion_channels():
     z[:PATCH, :PATCH] = 10
     mc = motion_channels(z, (3, 5))
     assert mc[3].min() == 1 and mc[2, 0, 0] == 1 and mc[2, 2, 4] == 0
+
+
+def test_fieldguide_lookalikes_display_only(tmp_path):
+    import numpy as np
+
+    from bluesight.fieldguide import lookalikes, photos
+
+    P = np.eye(3, dtype=np.float32)
+    out = lookalikes(np.array([0.1, 0.9, 0.2], np.float32), ["a", "b", "c"], P, 2)
+    assert [o["species"] for o in out] == ["b", "c"]
+    assert lookalikes(None, ["a"], P[:1]) == []
+    assert photos(tmp_path) == {}  # no attribution file: no guide, no crash

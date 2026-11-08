@@ -20,6 +20,7 @@ uv venv --python 3.11 .venv || goto fail
 REM --torch-backend=auto picks the NVIDIA (CUDA) build of PyTorch when an NVIDIA GPU is present, else the CPU build.
 uv pip install --python .venv\Scripts\python.exe --torch-backend=auto -r requirements.txt -e . || goto fail
 .venv\Scripts\python.exe scripts\setup_models.py || goto fail
+.venv\Scripts\python.exe scripts\fetch_reference_photos.py || echo  Field-guide photos skipped (optional).
 .venv\Scripts\python.exe scripts\prepare_resources.py
 .venv\Scripts\python.exe scripts\build_registry.py
 echo.

@@ -27,3 +27,7 @@ data/ground_truth/*.png
 # derived from the team photos (rebuilt by scripts/prepare_resources.py)
 data/crops/
 *.egg-info/
+
+# openly licensed reference photos (scripts/fetch_reference_photos.py); attribution.csv IS committed
+data/reference_web/*/
+data/reference_web_heldout/

@@ -136,3 +136,16 @@ def sidebar() -> None:
         st.html(local_badge(compact=True))
         st.html('<p class="bs-side-foot">Light or dark: <b>⋮ menu → Settings</b> (top right). '
                 'Follows your computer by default.</p>')
+
+
+@st.cache_resource(show_spinner="Preparing the field guide (first time only)…")
+def fieldguide() -> tuple[dict, list[str], "np.ndarray"]:
+    """Field-guide photos and their mean embeddings (visual aid only; never used for labels)."""
+    from bluesight import fieldguide as FG
+
+    c = base_config()
+    ph = FG.photos(c["_root"])
+    if not ph:
+        return {}, [], np.zeros((0, 1), np.float32)
+    names, protos = FG.prototypes(c["_root"], embedder_resource(), path(c, "cache_dir"))
+    return ph, names, protos

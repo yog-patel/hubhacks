@@ -63,6 +63,7 @@ Type your name in the sidebar before reviewing; it's saved with every decision (
 | `python scripts/run_video.py "data/videos/T1-STAT2 411.MP4"` | Analyse the protocol window (skip the first minute, analyse 15 min). Writes `outputs/runs/<video>/<start>-<end>s/{report.json, report.csv, species_summary.csv, annotated.mp4}` and evidence packages in `outputs/flags/<flag_id>/` |
 | `... --start 1290 --duration 60` / `--full` | Custom window (seconds) / whole video minus the first and last minute |
 | `python scripts/preview_enhance.py <video> --times 420,1320` | Before/after enhancement images with visibility scores → `outputs/enhance_preview/` |
+| `python scripts/fetch_reference_photos.py` | One-time, optional: openly licensed field-guide photos (iNaturalist CC0/CC-BY/CC-BY-SA; credits in `data/reference_web/attribution.csv`). Display only, never used for labels (EVALUATION.md v5) |
 | `python scripts/setup_models.py` | One-time model download (skips models already in `models/hf/`; copy that folder to skip it entirely) |
 | `python scripts/density_data.py` · `train_density.py --variant raw --scale 2.0 --motion --final` | Rebuild the dot-labelled training set and retrain/evaluate the fish counter (leave-one-frame-out; results in EVALUATION.md v4) |
 | `python scripts/build_registry.py` | Rebuild species prototypes from `data/reference_images/` and `outputs/registry/` (held-out species excluded) |
@@ -112,6 +113,7 @@ Project documents: [QUICKSTART.md](QUICKSTART.md) · [RESOURCES.md](RESOURCES.md
 |---|---|---|
 | Embedder (default) | BioCLIP `imageomics/bioclip` via `open_clip` | MIT (weights and code) |
 | Embedder (fallback) and fish-counter backbone | DINOv2-small `facebook/dinov2-small` | Apache-2.0 |
+| Field-guide photos | iNaturalist observers (credited per photo in `data/reference_web/attribution.csv`) | CC0 / CC-BY / CC-BY-SA |
 | Fish counter head | trained here on the biologists' tally dots (`models/density/head.pt`, 2 MB; `scripts/train_density.py`) | project code |
 | Detector (optional) | OWLv2 `google/owlv2-base-patch16-ensemble` (and `-large-patch14`, experiments only) via `transformers` | Apache-2.0 |
 | Detector (default) | BlueSight motion detector (OpenCV + PyTorch median) | project code |

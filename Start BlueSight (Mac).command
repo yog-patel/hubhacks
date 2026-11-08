@@ -16,6 +16,7 @@ if [ ! -x ".venv/bin/python" ]; then
   uv venv --python 3.11 .venv && \
   uv pip install --python .venv/bin/python -r requirements.txt -e . && \
   .venv/bin/python scripts/setup_models.py || { echo " Setup stopped with an error (see above)."; read -r; exit 1; }
+  .venv/bin/python scripts/fetch_reference_photos.py || echo " Field-guide photos skipped (optional)."
   .venv/bin/python scripts/prepare_resources.py
   .venv/bin/python scripts/build_registry.py
   echo " Setup finished."

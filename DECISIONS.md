@@ -227,3 +227,11 @@ two survey-video frames.
 The counter is better than the motion detector at 14:01 and worse at 22:00, so it does not replace the motion-based count
 (which also carries species and tracks). It is reported next to it, flags disagreements for human checking first, and draws
 a heatmap in Count check. Both counts appear in the Excel file. Config: `density.*`; `density.enabled: false` turns it off.
+
+## D35. Web reference photos are a field guide, not training data for identification
+Downloaded once with the user's approval (iNaturalist, CC0/CC-BY/CC-BY-SA only, attribution committed, images not).
+Measured (EVALUATION v5): no extra harm on held-out survey crops, but the real video crab's closest web species is blue
+crab (0.85 > T_KNOWN) and the web green-crab photos rank 12th, so registry prototypes from web photos would create false
+watch-list alarms. Kept out of the registry; shown to reviewers only. Green crab photos are stored separately
+(data/reference_web_heldout/) so the held-out demo stays honest; they are shown in the field guide but were never in the
+registry. NC-licensed photos were excluded to keep everything permissive.

@@ -112,6 +112,7 @@ def page() -> None:
             cols = st.container(key="crops").columns(5)
             for n, (c, p) in enumerate(zip(cols, crops), start=1):
                 c.image(str(p), width="stretch", alt=f"View {n} of the flagged animal, cropped from the video")
+        _field_guide_panel(f, cfg)
 
         st.divider()
         st.html(f'<div class="bs-sec"><h3>What is it?</h3><span class="hint">Keyboard: '
@@ -196,6 +197,32 @@ def page() -> None:
     secs = cfg["evaluation"]["reviewer_seconds_per_item"]
     st.caption(f"At about {secs} seconds per item, the {len(pending)} waiting items take roughly "
                f"{len(pending) * secs / 60:.0f} minute{'s' if len(pending) * secs >= 90 else ''} to review.")
+
+
+def _field_guide_panel(f: dict, cfg: dict) -> None:
+    """Closest field-guide species (openly licensed photos) to help a reviewer name the animal. Display only."""
+    if C.source() == "Mock data":
+        return
+    try:
+        ph, names, protos = C.fieldguide()
+    except Exception as exc:  # the review must keep working without the guide
+        log.warning("field guide unavailable: %s", exc)
+        return
+    if not names:
+        return
+    from bluesight.db import from_blob
+    from bluesight.fieldguide import lookalikes
+
+    near = lookalikes(from_blob(f.get("embedding")), names, protos, 3)
+    with st.expander("Compare with the field guide (reference photos)", icon=":material/menu_book:"):
+        st.caption("The three Nova Scotia field-guide species whose photos look most like this animal. A visual aid only: "
+                   "web photos (often fish in a hand) differ from murky video, so BlueSight never labels or counts from them.")
+        cols = st.columns(3)
+        for c, n in zip(cols, near):
+            p = ph[n["species"]][0]
+            c.image(p["path"], width="stretch", alt=f"Reference photo of {SV.display_name(n['species'], cfg)}")
+            c.html(f'<p class="bs-small"><b>{T.esc(SV.display_name(n["species"], cfg).capitalize())}</b> · look-alike score '
+                   f'{n["similarity"]:.2f}<br>{T.esc(p["attribution"])} · <a href="{T.esc(p["observation"])}">source</a></p>')
 
 
 def _reviewed_table(where: str, args: tuple) -> None:
