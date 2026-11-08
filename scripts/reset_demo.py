@@ -1,6 +1,7 @@
 """Reset the review/registry state after a demo rehearsal.
 
-Removes species approved in the app (outputs/registry/*), clears all review decisions, rebuilds the
+Removes species approved in the app (outputs/registry/*), clears all review decisions and the demo window's
+verified counts, rebuilds the
 registry from data/reference_images/, and re-runs the demo window (cached, ~1 min) so its review
 queue is fresh.   Usage: python scripts/reset_demo.py [--start 1280 --duration 75]
 """
@@ -10,9 +11,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from bluesight import assisted as A  # noqa: E402
 from bluesight.config import load_config, path  # noqa: E402
 from bluesight.db import DB  # noqa: E402
-from bluesight.pipeline import run_video  # noqa: E402
+from bluesight.pipeline import run_video, slug  # noqa: E402
 from bluesight.registry import Registry  # noqa: E402
 
 if __name__ == "__main__":
@@ -28,6 +30,13 @@ if __name__ == "__main__":
         shutil.rmtree(reg_dir)
     db.x("DELETE FROM species WHERE source='approved'")
     db.x("UPDATE flags SET review_decision=NULL, review_species=NULL, reviewer=NULL, review_timestamp=NULL")
+    # verified counts (Verify counts page) of the demo window, and their exported training frames
+    A.ensure_schema(db)
+    demo_run = f"{slug(Path(a.video).stem)}__{int(a.start)}-{int(a.start + a.duration)}s"
+    db.x("DELETE FROM assisted_counts WHERE run_id=?", (demo_run,))
+    tdir = path(cfg, "training_dir")
+    for f in tdir.glob(f"{demo_run}_*") if tdir.exists() else []:
+        f.unlink()
     print("registry:", Registry(cfg, db).build_from_folders())
     rep = run_video(a.video, cfg, a.start, a.duration)
     print(f"demo window re-run in {rep['runtime_s']} s; {rep['review_items']} review items")

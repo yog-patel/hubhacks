@@ -397,6 +397,12 @@ def write_markdown(r: dict, vtab: pd.DataFrame | None, cfg: dict) -> None:
     except Exception as exc:  # the detailed report must still be written
         print("experiment_report failed:", exc)
     (ROOT / "EVALUATION.md").write_text("\n".join(L))
+    try:  # v3 section (FishSpotter, sensitivity, embedders, AI-assisted counting) from measured results
+        from v3_report import update
+
+        update()
+    except Exception as exc:
+        print("v3_report failed:", exc)
 
 
 if __name__ == "__main__":

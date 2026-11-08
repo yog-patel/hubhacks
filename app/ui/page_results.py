@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import altair as alt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -126,6 +127,15 @@ def species_table(rep: dict) -> pd.DataFrame:
     return out
 
 
+def with_verified(sub: pd.DataFrame, verified: dict) -> pd.DataFrame:
+    """Add the biologist-verified count (AI-assisted counting) to the subsample table."""
+    sub = sub.copy()
+    v = [verified.get(float(t)) for t in sub["subsample_t_s"]]
+    sub["verified_total_count"] = [r["final_count"] if r else None for r in v]
+    sub["verified_by"] = [r["reviewer"] if r else None for r in v]
+    return sub
+
+
 def page() -> None:
     cfg = C.cfg()
     T.header("Step 2 of 3 · Results", "Survey results",
@@ -167,6 +177,24 @@ def page() -> None:
         st.warning(f"{100 * vis['fraction_below_v_min']:.0f}% of this footage is too murky to identify species. Fish seen there are "
                    "counted in 'Unknown/Unable to ID due to visibility', so treat totals as a lower bound, not as zero fish.",
                    icon=":material/visibility_off:")
+
+    # ------------------------------------------------------------------ biologist-verified counts
+    from bluesight import assisted as A
+
+    verified = A.load_saved(C.db(), rep["run_id"])
+    pts = [float(s_["subsample_t_s"]) for s_ in rep["subsamples"]]
+    vdone = [verified[p] for p in pts if p in verified]
+    if vdone:
+        by_t = {float(s_["subsample_t_s"]): s_ for s_ in rep["subsamples"]}
+        ai_same = [by_t[float(v["subsample_t_s"])]["total_fish_count"] + by_t[float(v["subsample_t_s"])].get("invertebrate_count", 0)
+                   for v in vdone]  # marks include invertebrates, so compare with fish + invertebrates
+        st.success(f"**Biologist-verified:** {len(vdone)} of {len(pts)} subsamples. Verified MeanCount "
+                   f"**{np.mean([v['final_count'] for v in vdone]):.1f}** organisms per subsample (BlueSight alone on the same "
+                   f"frames: {np.mean(ai_same):.1f}). The CSV download includes the verified counts.", icon=":material/verified:")
+    else:
+        st.info("BlueSight finds about half of the faint fish a biologist counts. For an exact protocol count, check its marks "
+                "on the subsample frames in **Verify counts** (about a minute per frame).", icon=":material/ads_click:")
+    st.page_link(C.PAGES["assisted"], label="Verify counts", icon=":material/ads_click:")
 
     # ------------------------------------------------------------------ species table
     st.subheader("Counts by species", anchor=False)
@@ -242,15 +270,17 @@ def page() -> None:
     if run_dir and (run_dir / "report.csv").exists():
         d1, d2, d3 = st.columns(3)
         rid = rep["run_id"]
-        d1.download_button("Subsample counts (CSV)", (run_dir / "report.csv").read_bytes(), f"{rid}_subsamples.csv", "text/csv",
-                           icon=":material/download:", help="One row per 60-second subsample, in the protocol spreadsheet layout.")
+        sub_csv = with_verified(pd.read_csv(run_dir / "report.csv"), verified)
+        d1.download_button("Subsample counts (CSV)", sub_csv.to_csv(index=False).encode(), f"{rid}_subsamples.csv", "text/csv",
+                           icon=":material/download:", help="One row per 60-second subsample, in the protocol spreadsheet layout, "
+                                                            "with the biologist-verified count where one was saved.")
         if (run_dir / "species_summary.csv").exists():
             d2.download_button("Species summary (CSV)", (run_dir / "species_summary.csv").read_bytes(), f"{rid}_species.csv",
                                "text/csv", icon=":material/download:")
         d3.download_button("Full report (JSON)", (run_dir / "report.json").read_bytes(), f"{rid}_report.json", "application/json",
                            icon=":material/download:")
     with st.expander("Subsample table (protocol spreadsheet layout)"):
-        st.dataframe(pd.DataFrame(rep["subsamples"]), hide_index=True, width="stretch")
+        st.dataframe(with_verified(pd.DataFrame(rep["subsamples"]), verified), hide_index=True, width="stretch")
     with st.expander("Run details: models, thresholds, timings"):
         st.code(json.dumps({k: rep.get(k) for k in ("ran_on", "offline", "network", "energy", "runtime_s", "timings_s",
                                           "full_processing_s_per_video_min", "models", "thresholds", "sample_fps",

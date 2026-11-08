@@ -220,3 +220,62 @@ Demo window 1280–1355 s (21:20–22:35, demo half). A large European green cra
 * **Species identification is limited by the references.** The only fish references are screenshot crops of one unidentified school at another station (T2-STAT2). The 'known' species is therefore 'small schooling fish (species unconfirmed)'. BioCLIP zero-shot could not name the species reliably (see RESOURCES.md).
 * The image-level flag test uses screenshot crops, which come from a different domain than live video crops. On video, the review queue is the safety net.
 * Every result comes from one video and two manually counted frames. Results on other sites or seasons are unknown.
+
+<!-- v3:start -->
+
+---
+
+# v3 (branch satvik/accuracy): model experiments and AI-assisted counting
+
+_Measured on an Apple M2 laptop (MPS). Tuning data only (14:01 frame, T2-STAT2 photos); the 22:00 count was not used._
+
+### E9. FishSpotter: a learned detector trained on the biologists' tally dots
+
+A ResNet-18 heatmap point detector (BSD-3 torchvision, ImageNet weights) trained for 1500 steps (582 s on this computer) **only on the other station's photos** (T2-STAT2, 198 tally dots on 3 screenshots, red marks and grid painted out), then tested on this video's 14:01 frame, which it never saw. Detection threshold fixed at 0.3 before testing.
+
+| Detector (5 exact frames at 14:01, 36 tally points) | Detections | Precision | Recall | F1 |
+|---|---|---|---|---|
+| Motion (FINAL v2, unchanged) | 24.0 | 0.76 | 0.51 | **0.606** |
+| FishSpotter alone | 16.2 | 0.71 | 0.31 | **0.430** |
+| Motion + FishSpotter (fused) | 32.2 | 0.57 | 0.50 | **0.529** |
+
+**Result: not adopted.** FishSpotter alone is fairly precise but finds few fish, and fusing it with motion lowers F1. Across every threshold the fused recall never passes 0.52: about half the fish the biologists counted give no response from either detector. Looking at those fish (crops around every tally point), the missed ones are faint grey streaks that are recognisable only in motion, so a still-image model trained on three photos cannot find them. The code is kept (`detector.name: fused`) for retraining on verified frames (below).
+
+### E10. Motion sensitivity, scored on what is actually counted
+
+Earlier tuning (E2) scored raw single-frame detections. The count only uses detections on persistent tracks, so this scores those counted detections at the two sampled frames around the annotated instant (840.97 and 841.47 s) against the 36 tally points.
+
+| z threshold | Min. elongation | Counted (manual 36) | Precision | Recall | F1 |
+|---|---|---|---|---|---|
+| 2.0 | 1.2 | 62.5 | 0.12 | 0.21 | 0.152 |
+| 2.0 | 1.4 | 34.5 | 0.07 | 0.07 | 0.071 |
+| 2.25 | 1.2 | 39.5 | 0.20 | 0.22 | 0.212 |
+| 2.25 | 1.4 | 23.5 | 0.53 | 0.35 | 0.420 |
+| 2.5 | 1.2 | 27.0 | 0.35 | 0.26 | 0.301 |
+| 2.5 (current) | 1.4 | 21.0 | 0.50 | 0.29 | 0.369 |
+
+MIN_FRAMES 4 or 5 gave the same or nearly the same numbers. **Result: no change.** The setting that brings the count close to 36 does it by adding noise (precision 0.07 to 0.20), so the right total would be right for the wrong reasons. The best F1 (z 2.25) is about 0.05 above the current setting on just two frames, too small a sample to change a tuned default.
+
+### E11. BioCLIP 2 instead of BioCLIP
+
+| | BioCLIP (current) | BioCLIP 2 |
+|---|---|---|
+| Known vs held-out separation (AUC) | 0.905 | 0.889 |
+| Thresholds T_KNOWN / T_UNKNOWN (re-tuned per model) | 0.77 / 0.68 | 0.92 / 0.85 |
+| Known photos recognised | 76.1 % | 76.9 % |
+| Held-out photos flagged unfamiliar | 56.4 % | 30.8 % |
+| Held-out photos mislabelled as known | 10.3 % | 12.8 % |
+| Demo crab track: similarity to the fish prototype | 0.417 | 0.690 |
+| Demo crab track: rank among 442 tracks (1 = most unfamiliar) | 2 | 1 |
+| Vision encoder parameters | 86 M | 304 M |
+| Time per crop on this computer | 31 ms | 199 ms |
+
+**Result: not adopted.** BioCLIP 2 ranks the demo crab as the single most unfamiliar track, but on the held-out test it flags far fewer unknown organisms as unfamiliar and mislabels more as known, and it costs about six times the compute per crop, against Coastal Action's low-energy requirement. With one unidentified fish class and murky crops, a bigger model has little to work with.
+
+### AI-assisted counting (Verify counts page)
+
+Because no automatic detector finds the faint fish (E9, E10), the protocol count now has a human-in-the-loop step: BlueSight pre-marks every fish it counted on each subsample frame, and the biologist clicks to add a missed fish or remove a wrong mark. The verified count is exact by construction, the time per frame is measured, and every correction is saved as point labels (`outputs/training/assisted/`) to retrain FishSpotter on this footage.
+
+_No verified frames saved yet on this computer, so there is no measured time per frame to report._
+
+<!-- v3:end -->
