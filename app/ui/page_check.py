@@ -126,14 +126,11 @@ def page() -> None:
     rows = CC.checks(db, rep["run_id"])
     s = CC.summary(rep, rows)
     agree = s["blind_agreement_pct"]
-    T.stats([
-        {"k": f"of {s['n_subsamples']} check points done", "v": s["n_checked"],
-         "tone": "ok" if s["n_checked"] == s["n_subsamples"] else ""},
-        {"k": "fish per check point" + (", with your checks" if s["n_checked"] else ", AI only"), "v": f"{s['MeanCount_checked']:.1f}",
-         "tip": f"Protocol MeanCount. AI alone: {s['MeanCount_ai']:.1f}"},
-        {"k": "agreement in no-hint counts (target 95%)", "v": "–" if agree is None else f"{agree:.0f}",
-         "unit": "" if agree is None else "%", "tone": "" if agree is None else ("ok" if agree >= CC.AGREEMENT_TARGET else "attn")},
-    ])
+    st.html(f'<div class="bs-facts"><span>Checked<b>{s["n_checked"]} of {s["n_subsamples"]}</b></span>'
+            f'<span>Fish per check point<b>{s["MeanCount_checked"]:.1f}</b>'
+            f'{"" if s["n_checked"] else " (AI only)"}</span>'
+            + (f'<span>No-hint agreement<b>{agree:.0f}%</b> (target 95%)</span>' if agree is not None else "")
+            + '</div>')
 
     done = {(round(r["subsample_t_s"], 3), r["mode"]) for r in rows}
     mode = st.segmented_control("Mode", list(MODES), format_func=MODES.get, default="assisted", key="check_mode",

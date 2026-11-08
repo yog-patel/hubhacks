@@ -51,47 +51,110 @@ def page() -> None:
     up_dir = path(cfg, "outputs_dir") / "uploads"
     vids += sorted(p for p in up_dir.glob("*") if p.suffix.lower() in VIDEO_EXTS) if up_dir.exists() else []
 
-    with st.container(border=True):
-        T.section("Video", "1")
+    hero = st.container(border=True)     # filled below, after the upload box has had a chance to add a video
+    clarity = st.container()
+    with st.expander("Add a video from this computer", icon=":material/upload:"):
         up = st.file_uploader("Add a video", type=[e.strip(".") for e in VIDEO_EXTS], label_visibility="collapsed",
                               help="MP4, MOV, AVI, MKV or M4V. Copied to this computer only.")
-        if up is not None:
-            dest = up_dir / up.name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if not dest.exists():
-                dest.write_bytes(up.getbuffer())
-            st.session_state["video_pick"] = str(dest)
-            if dest not in vids:
-                vids.append(dest)
-        if not vids:
-            T.empty_state("No videos yet", "Drop a survey video in the box above.")
-            return
-        names = [str(v) for v in vids]
-        default = names.index(st.session_state["video_pick"]) if st.session_state.get("video_pick") in names else 0
-        video = Path(st.selectbox("Video", names, index=default, format_func=lambda p: Path(p).name, key="video_select", label_visibility="collapsed"))
-        try:
-            info = video_info(video)
-        except IOError:
-            st.error(f"Can't open {video.name}. The file may be damaged or in a format OpenCV can't read. "
-                     "Try re-exporting it as H.264 or HEVC MP4.")
-            return
-        st.html(f'<div class="bs-facts" style="margin-bottom:0"><span>Length <b>{C.fmt_t(info.duration_s)}</b></span>'
-                f'<span><b>{"4K" if info.width >= 3800 else f"{info.height}p"}</b></span>'
-                f'<span>Site <b>{T.esc(video.stem.split(" ")[0])}</b></span></div>')
-
+    if up is not None:
+        dest = up_dir / up.name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if not dest.exists():
+            dest.write_bytes(up.getbuffer())
+        st.session_state["video_pick"] = str(dest)
+        if dest not in vids:
+            vids.append(dest)
     if len(vids) > 1:
         batch_section(cfg, vids)
+    if not vids:
+        with hero:
+            T.empty_state("No videos yet", "Add a survey video with the box below to get started.")
+        return
 
-    # ------------------------------------------------------------------ enhancement preview
-    with st.container(border=True):
-        T.section("Water clarity", "2", "optional")
+    with hero:
+        names = [str(v) for v in vids]
+        default = names.index(st.session_state["video_pick"]) if st.session_state.get("video_pick") in names else 0
+        still, ctl = st.columns([3, 2], gap="large")
+        with ctl:
+            video = Path(st.selectbox("Video", names, index=default, format_func=lambda p: Path(p).name,
+                                      key="video_select", label_visibility="collapsed"))
+            try:
+                info = video_info(video)
+            except IOError:
+                st.error(f"Can't open {video.name}. Re-export it as an MP4 (H.264 or HEVC) and add it again.")
+                return
+            st.html(f'<div class="bs-facts"><span>Length<b>{C.fmt_t(info.duration_s)}</b></span>'
+                    f'<span>Quality<b>{"4K" if info.width >= 3800 else f"{info.height}p"}</b></span>'
+                    f'<span>Site<b>{T.esc(video.stem.split(" ")[0])}</b></span></div>')
+            p = cfg["protocol"]
+            mode = st.segmented_control("How much of the video?", ["Protocol window", "Custom window", "Whole video"],
+                                        default="Protocol window", key="window_mode",
+                                        format_func={"Protocol window": "Standard", "Custom window": "A part",
+                                                     "Whole video": "Whole"}.get,
+                                        help=f"Standard: skip the first {p['trim_start_s'] // 60:.0f} min (settling "
+                                             f"sediment), then {p['analysis_duration_s'] // 60:.0f} min, as in the protocol."
+                                        ) or "Protocol window"
+            start, dur = None, None
+            if mode == "Custom window":
+                c1, c2 = st.columns(2)
+                start = c1.number_input("Start (s)", 0.0, float(info.duration_s), 1280.0, 5.0, key="win_start")
+                dur = c2.number_input("Length (s)", 10.0, float(info.duration_s), 75.0, 5.0, key="win_dur")
+                st.caption(f"{C.fmt_t(start)} to {C.fmt_t(min(info.duration_s, start + dur))}")
+            elif mode == "Whole video":
+                start, dur = float(p["trim_start_s"]), float(info.duration_s)
+            go = st.button("Analyze video", type="primary", icon=":material/play_arrow:", key="run_btn", width="stretch")
+            st.html(C.local_badge(compact=True))
+            with st.expander("Advanced"):
+                force = st.checkbox("Start fresh (ignore saved work)", value=False,
+                                    help="Normally saved work is reused, so a re-run takes seconds. Fresh: about 10 "
+                                         "minutes per 15 minutes of video on a laptop.")
+        with still:
+            t_still = 1297.0 if info.duration_s > 1300 else info.duration_s / 3
+            small, _, _ = preview_frame(str(video), t_still, json.dumps(cfg["enhance"], sort_keys=True))
+            if small is not None:
+                st.image(cv2.cvtColor(small, cv2.COLOR_BGR2RGB), width="stretch",
+                         alt=f"Still from {video.name} at {C.fmt_t(t_still)}")
+        steps = st.empty()
+        status = st.empty()
+        if go:
+            from bluesight.pipeline import run_video
+
+            steps.html(T.stepper())
+            bar = status.progress(0.0, text="Starting…")
+            t0 = time.time()
+
+            def cb(f: float, m: str) -> None:
+                a, d = stage_of(f, m)
+                steps.html(T.stepper(a, d))
+                bar.progress(min(1.0, f), text=f"{time.time() - t0:.0f} s")
+
+            try:
+                rep = run_video(video, cfg, start, dur, cb, force)
+            except Exception as exc:  # shown to the user and logged
+                log.exception("analysis failed")
+                status.error(f"The analysis stopped ({exc}). Nothing was saved. Try again; if it stops again, "
+                             "send outputs/logs/bluesight.log to your tech contact.")
+                return
+            steps.empty()
+            status.empty()
+            st.session_state["last_run"] = rep["run_id"]
+            st.session_state["just_ran"] = rep["run_id"]
+            show_summary(rep, time.time() - t0)
+        elif st.session_state.get("just_ran"):
+            run = next((r for r in C.list_runs() if r["run_id"] == st.session_state["just_ran"]), None)
+            if run:
+                show_summary(C.load_report(run), None)
+
+    # ------------------------------------------------------------------ water clarity (optional)
+    with clarity:
+        st.subheader("How clear is the water?", anchor=False)
         vmin = float(cfg["identify"]["V_MIN"])
         t = st.slider("Moment in the video (seconds)", 0.0, float(max(1.0, info.duration_s - 1)),
                       float(min(420.0, info.duration_s / 3)), 1.0, key="preview_t",
                       help="Try 420 (very hazy) and 1297 (a green crab by the pole).")
         small, enh, v = preview_frame(str(video), float(t), json.dumps(cfg["enhance"], sort_keys=True))
         if small is None:
-            st.error("Couldn't read a frame at that moment. Try a slightly earlier time.")
+            st.error("No frame at that moment. Move the slider a little earlier.")
         else:
             left, right = st.columns([3, 2], gap="large")
             with left:
@@ -106,61 +169,6 @@ def page() -> None:
                         f'<div class="mark" style="left:{vmin * 100:.0f}%" title="below this mark: too murky to name species"></div></div>'
                         + ('<p class="bs-small">Fish here are counted as “too murky to name”, never as a new species.</p>'
                            if v < vmin else '<p class="bs-small">Clear enough to name species.</p>'))
-
-    # ------------------------------------------------------------------ run
-    with st.container(border=True):
-        T.section("Analyze", "3")
-        p = cfg["protocol"]
-        mode = st.segmented_control("How much of the video?", ["Protocol window", "Custom window", "Whole video"],
-                                    default="Protocol window", key="window_mode",
-                                    format_func={"Protocol window": "Standard 15 min", "Custom window": "Pick a part",
-                                                 "Whole video": "Whole video"}.get,
-                                    help=f"Standard: skip the first {p['trim_start_s'] // 60:.0f} min (settling sediment), "
-                                         f"then {p['analysis_duration_s'] // 60:.0f} min, as in the protocol.") or "Protocol window"
-        start, dur = None, None
-        if mode == "Custom window":
-            c1, c2 = st.columns(2)
-            start = c1.number_input("Start (seconds)", 0.0, float(info.duration_s), 1280.0, 5.0, key="win_start")
-            dur = c2.number_input("Length (seconds)", 10.0, float(info.duration_s), 75.0, 5.0, key="win_dur")
-            st.caption(f"{C.fmt_t(start)} to {C.fmt_t(min(info.duration_s, start + dur))}")
-        elif mode == "Whole video":
-            start, dur = float(p["trim_start_s"]), float(info.duration_s)
-        with st.expander("Advanced"):
-            force = st.checkbox("Start fresh (ignore saved work)", value=False,
-                                help="Normally saved work is reused, so a re-run takes seconds. Fresh: about 10 minutes "
-                                     "per 15 minutes of video on a laptop.")
-        steps = st.empty()
-        steps.html(T.stepper())
-        b_col, n_col = st.columns([1, 3], vertical_alignment="center")
-        go = b_col.button("Analyze video", type="primary", icon=":material/play_arrow:", key="run_btn")
-        n_col.html(C.local_badge())
-        status = st.empty()
-        if go:
-            from bluesight.pipeline import run_video
-
-            bar = status.progress(0.0, text="Starting…")
-            t0 = time.time()
-
-            def cb(f: float, m: str) -> None:
-                a, d = stage_of(f, m)
-                steps.html(T.stepper(a, d))
-                bar.progress(min(1.0, f), text=f"{m} · {time.time() - t0:.0f} s")
-
-            try:
-                rep = run_video(video, cfg, start, dur, cb, force)
-            except Exception as exc:  # shown to the user and logged
-                log.exception("analysis failed")
-                status.error(f"Something went wrong: {exc}. Nothing was saved. Details: outputs/logs/bluesight.log")
-                return
-            steps.html(T.stepper((), range(5)))
-            status.empty()
-            st.session_state["last_run"] = rep["run_id"]
-            st.session_state["just_ran"] = rep["run_id"]
-            show_summary(rep, time.time() - t0)
-        elif st.session_state.get("just_ran"):
-            run = next((r for r in C.list_runs() if r["run_id"] == st.session_state["just_ran"]), None)
-            if run:
-                show_summary(C.load_report(run), None)
 
 
 def batch_section(cfg: dict, vids: list[Path]) -> None:

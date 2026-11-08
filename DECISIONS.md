@@ -247,3 +247,15 @@ registry. NC-licensed photos were excluded to keep everything permissive.
   non-technical staff. Bundled in `static/fonts/` and served by Streamlit's static serving, so the app stays offline.
 * **Removed generic tells:** ALL-CAPS labels, monospace number badges, step eyebrows, identical shadowed cards, long
   intros. Labels are sentence case; panels are flat with small radii.
+
+## D37. Design critique and accessibility pass (Anthropic Design plugin: design-critique, accessibility-review, ux-copy)
+* **Analyze:** the upload box was the first thing the eye landed on, while the main action sat three sections down. The page
+  now opens with a still from the survey video (the pole and the green crab) beside the video picker and one full-width
+  Analyze button; upload and batch moved to expanders below; water clarity is an optional section after.
+* **Check counts:** three big numbers pushed the working frame below the fold; they are now one line of facts (the big
+  numbers live on Report).
+* **Copy:** error messages say what happened and what to do next; "It's this one" became "Confirm species"; window options
+  are "Standard / A part / Whole".
+* **Accessibility scan:** all images have alt text; text contrast passes (flagged items were text on translucent button
+  tints, measured against the tint). Remaining: Streamlit's own 16 px help icons and 13 px checkboxes, which can't be
+  resized without patching Streamlit. Screen-reader and 200 % zoom testing still not done (D23).

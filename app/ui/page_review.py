@@ -142,7 +142,7 @@ def page() -> None:
             else:
                 ex = None
                 st.caption("No species yet.")
-            if st.button("It's this one", key=f"ex_{f['flag_id']}", icon=":material/check:", width="stretch",
+            if st.button("Confirm species", key=f"ex_{f['flag_id']}", icon=":material/check:", width="stretch",
                          shortcut="E", disabled=not (ok and ex),
                          help="Confirm the species. Its pictures are added to that species' reference."):
                 C.registry().add_images(ex, crops, C.reviewer(), new_species=False, ref_tag=f"{f['flag_id']}_")

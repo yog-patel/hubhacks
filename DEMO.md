@@ -34,7 +34,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 ## 2. Counts per species with confidence (~1 min)
 
-1. **Run the analysis** → **Pick a part** → Start **1280**, Length **75** → **Analyze video**.
+1. **Run the analysis** → **A part** → Start **1280**, Length **75** → **Analyze video**.
    The five steps (Enhance → Detect → Track → Identify → Count) light up and turn into ticks. With a warm cache (after `reset_demo.py`) it finishes in **about 10–40 s**. A first-ever run of this window takes about 3–4 minutes on the M5.
 2. The green message: *Finished in … on this computer (Apple M5 …). External network connections during the run: 0.* Three summary cards follow.
 3. Click **Report**. Point at:
@@ -73,10 +73,10 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 ## 5. Re-run: the new species is recognised (~1 min)
 
-1. **Analyze** → same Pick a part (1280 / 75) → **Analyze video** (cached, about 40 s).
+1. **Analyze** → same A part (1280 / 75) → **Analyze video** (cached, about 40 s).
 2. **Report**: **Species found** now includes **European green crab**, and the species table has a *European green crab* row. In the protocol subsamples it is counted as an **invertebrate**, not in total fish.
 3. Two more crab tracks that nobody reviewed (**21:29–21:42** and **21:35–21:48**) are now recognised automatically (EVALUATION.md §5b).
-   *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches. In the rehearsal 2 of the 5 tracks recognised as crab were outside the crab's walk (v1: 8 of 10). The fix is the review loop: confirm more crab examples with **It's this one** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
+   *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches. In the rehearsal 2 of the 5 tracks recognised as crab were outside the crab's walk (v1: 8 of 10). The fix is the review loop: confirm more crab examples with **Confirm species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
 
 ## 5b. Survey details, alert and Excel (~45 s)
 

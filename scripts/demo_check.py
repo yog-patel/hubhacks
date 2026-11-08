@@ -43,7 +43,7 @@ def wait_run(page: Page, timeout_s: float = 900) -> None:
 def analyze(page: Page, url: str, out: Path, tag: str) -> None:
     page.goto(f"{url}/?reviewer=Demo+Biologist")
     settle(page, 3)
-    page.get_by_text("Pick a part", exact=True).click()
+    page.get_by_text("A part", exact=True).click()
     settle(page, 2)
     for label, val in (("Start (seconds)", "1280"), ("Length (seconds)", "75")):
         box = page.get_by_label(label)
