@@ -82,6 +82,28 @@ def draw_marks(img: np.ndarray, marks: list[dict], removed: set[int], scale: flo
     return out
 
 
+def density_map(rep: dict, ft: float) -> np.ndarray | None:
+    """The counting model's per-patch density for a subsample frame (None if the model was not run)."""
+    d = rep.get("density") or {}
+    f = d.get("maps")
+    if not f or not Path(f).exists():
+        return None
+    z = np.load(f)
+    k = f"{ft:.3f}"
+    return z[k].astype(np.float32) if k in z.files else None
+
+
+def overlay_density(img: np.ndarray, d: np.ndarray) -> np.ndarray:
+    """Blend a cyan glow where the counting model places fish."""
+    h, w = img.shape[:2]
+    m = cv2.resize(d, (w, h), interpolation=cv2.INTER_CUBIC)
+    m = cv2.GaussianBlur(np.clip(m, 0, None), (0, 0), 6)
+    m = np.clip(m / (np.percentile(m, 99.7) + 1e-6), 0, 1)[..., None]
+    glow = np.zeros_like(img)
+    glow[..., 0], glow[..., 1] = 255, 220
+    return (img * (1 - 0.65 * m) + glow * 0.65 * m).astype(np.uint8)
+
+
 def page() -> None:
     cfg = C.cfg()
     db = C.db()
@@ -127,8 +149,14 @@ def page() -> None:
 
     def fmt(i: int) -> str:
         tick = "✓ " if (round(subs[i]["subsample_t_s"], 3), mode) in done else ""
-        return f"{tick}Subsample {i + 1} · {subs[i]['time']}"
-    first_open = next((i for i in opts if (round(subs[i]["subsample_t_s"], 3), mode) not in done), 0)
+        flag = " · ⚑ check first: the two AI estimates disagree" if subs[i].get("estimates_disagree") else ""
+        return f"{tick}Subsample {i + 1} · {subs[i]['time']}{flag}"
+    n_dis = sum(1 for x in subs if x.get("estimates_disagree"))
+    if n_dis:
+        st.caption(f"⚑ {n_dis} of {len(subs)} subsamples are marked *check first*: the motion detector and the trained "
+                   "counting model disagree there, so a person's count matters most.")
+    order = sorted(opts, key=lambda i: (not subs[i].get("estimates_disagree"), i))
+    first_open = next((i for i in order if (round(subs[i]["subsample_t_s"], 3), mode) not in done), 0)
     cur = st.session_state.get("check_cursor", first_open)
     cur = min(max(0, int(cur)), len(subs) - 1)
     pick = st.selectbox("Subsample", opts, index=cur, format_func=fmt, key=f"check_pick_{mode}_{rep['run_id']}_{cur}")
@@ -144,6 +172,7 @@ def page() -> None:
     prev = next((r for r in rows if round(r["subsample_t_s"], 3) == round(sub["subsample_t_s"], 3) and r["mode"] == mode), None)
 
     img = frame_image(cfg, rep, ft)
+    dmap = density_map(rep, ft)
     scale = (img.shape[1] / float(rep.get("process_width", cfg["sampling"]["process_width"]))) if img is not None else 1.0
     title = "Fix the AI’s marks" if mode == "assisted" else "Count the fish you can see"
     with st.container(border=True, key="check_card"):
@@ -174,7 +203,9 @@ def page() -> None:
                                       int(prev["human_invert"]) if prev else kept_inv, 1, key=f"iv_{key}")
                 human = kept_fish + int(missed)
                 st.html(f'<div class="bs-readout"><p class="lbl">Your count</p><div class="num">{human}<span> fish</span></div>'
-                        f'<p class="bs-small">AI marked {ai_fish} fish · you removed {len(removed)} · added {int(missed)}</p></div>')
+                        f'<p class="bs-small">AI marked {ai_fish} fish · you removed {len(removed)} · added {int(missed)}'
+                        + (f'<br>Counting model estimate: <b>{sub["density_count"]:.0f}</b> fish' if sub.get("density_count") is not None else "")
+                        + '</p></div>')
             else:
                 removed, missed = [], 0
                 human = st.number_input("Fish you can count", 0, 500, int(prev["human_fish"]) if prev else 0, 1, key=f"hb_{key}")
@@ -202,6 +233,11 @@ def page() -> None:
                 st.info("The frame isn't available on this computer (the original video was moved).")
             else:
                 shown = draw_marks(img, marks, set(removed), scale, invert) if mode == "assisted" else img
+                if mode == "assisted" and dmap is not None and st.toggle(
+                        "Show where the counting model sees fish", key=f"hm_{key}",
+                        help="Blue glow = the trained counting model thinks fish are there. Useful for spotting faint "
+                             "fish the boxes missed."):
+                    shown = overlay_density(shown, dmap)
                 st.image(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB), width="stretch",
                          alt=f"Subsample frame at {C.fmt_t(ft)}" + (f" with {len(marks)} numbered AI marks" if mode == "assisted" else ""))
                 if mode == "assisted":

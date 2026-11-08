@@ -191,6 +191,43 @@ def _no_crops(cdir: Path, ids: set[int]) -> set[int]:
     return {i for i in ids if i not in crops}
 
 
+# ---------------------------------------------------------------------------- stage C2 (optional)
+def _density_counts(video: Path, sub_rows: list[dict], cfg: dict[str, Any], cdir: Path, device: str,
+                    progress: Progress) -> dict[str, Any] | None:
+    """Second, independent count per subsample from the trained fish counter (cached per frame; adds
+    ``density_count`` and ``estimates_disagree`` to each subsample row)."""
+    dcfg = cfg.get("density") or {}
+    wpath = Path(cfg["_root"]) / str(dcfg.get("weights", ""))
+    if not dcfg.get("enabled") or not wpath.is_file():
+        return None
+    try:
+        from .density import DensityCounter
+
+        cache_f = cdir / f"density_{int(wpath.stat().st_mtime)}.npz"
+        cached = dict(np.load(cache_f, allow_pickle=True)) if cache_f.exists() else {}
+        dc = None
+        for i, r in enumerate(sub_rows):
+            key = f"{r['frame_t_s']:.3f}"
+            if key not in cached:
+                dc = dc or DensityCounter(wpath, device)
+                progress(0.7 + 0.05 * i / max(1, len(sub_rows)), f"counting model, subsample {i + 1}/{len(sub_rows)}")
+                _, d = dc.count_at(video, float(r["frame_t_s"]), cfg)
+                cached[key] = d.astype(np.float16)
+            n = float(np.asarray(cached[key], np.float32).sum())
+            r["density_count"] = round(n, 1)
+            a, b = float(r["total_fish_count"]), n
+            r["estimates_disagree"] = bool(abs(a - b) >= float(dcfg.get("disagree_min_diff", 5)) and
+                                           max(a, b) > float(dcfg.get("disagree_ratio", 1.5)) * max(min(a, b), 1.0))
+        np.savez_compressed(cache_f, **cached)
+        ck = dc.loo if dc else None
+        return {"model": f"density-dinov2s ({wpath.name})", "maps": str(cache_f),
+                "MeanCount_density": round(float(np.mean([r["density_count"] for r in sub_rows])), 3) if sub_rows else 0.0,
+                "n_disagree": int(sum(r["estimates_disagree"] for r in sub_rows)), "loo": ck}
+    except Exception:  # never lose a run over the second opinion
+        log.exception("density counter failed; continuing without it")
+        return None
+
+
 # ---------------------------------------------------------------------------- main entry
 def run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_s: float | None = None,
               duration_s: float | None = None, progress: Progress | None = None, force: bool = False,
@@ -420,6 +457,7 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
                          "visibility": round(float(near), 3),
                          "total_fish_count": int(sum(row.get(c, 0) for c in fish_cols)),
                          "invertebrate_count": int(sum(row.get(c, 0) for c in invert)), **{k: int(v) for k, v in row.items()}})
+    density_info = _density_counts(video, sub_rows, cfg, cdir, device, progress)
     mc_proto = C.meancount(pc) if len(pc.columns) else {}
     mc_all = C.meancount(counts) if len(counts.columns) else {}
     mx = C.maxn(counts) if len(counts.columns) else {}
@@ -514,6 +552,7 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
         "registry_species": names,
         "annotated_video": str(ann_path), "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "cache_dir": str(cdir), "process_width": int(cfg["sampling"]["process_width"]),
+        "density": density_info,
     }
     (run_dir / "report.json").write_text(json.dumps(report, indent=2, default=float))
     pd.DataFrame(sub_rows).to_csv(run_dir / "report.csv", index=False)
