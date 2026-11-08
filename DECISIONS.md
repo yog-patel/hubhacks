@@ -244,7 +244,7 @@ registry. NC-licensed photos were excluded to keep everything permissive.
   tint `#DDE9EC`, kelp olive `#4F5E26` for "done", survey-flag orange `#A93A0B` only for "check first" and alerts. Dark
   mode mirrors it. Text contrast ≥ 4.5:1.
 * **Type:** Atkinson Hyperlegible Next (Braille Institute; SIL Open Font License), one family, chosen for legibility by
-  non-technical staff. Bundled in `static/fonts/` and served by Streamlit's static serving, so the app stays offline.
+  non-technical staff. Bundled in `app/app/static/fonts/` and served by Streamlit's static serving, so the app stays offline.
 * **Removed generic tells:** ALL-CAPS labels, monospace number badges, step eyebrows, identical shadowed cards, long
   intros. Labels are sentence case; panels are flat with small radii.
 

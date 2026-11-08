@@ -10,7 +10,7 @@ address = "localhost"             # only reachable from this machine (not the lo
 headless = true
 maxUploadSize = 8192              # MB; 4K survey videos are large
 runOnSave = false
-enableStaticServing = true        # serves static/ (the bundled font) from this computer; nothing is fetched online
+enableStaticServing = true        # serves app/static/ (the bundled font) from this computer; nothing is fetched online
 
 [client]
 toolbarMode = "viewer"            # keeps the ⋮ menu, where Settings → theme (Light / Dark / System) lives
@@ -23,7 +23,7 @@ showWarningOnDirectExecution = false
 # Light and dark themes (see app/ui/theme.py and DECISIONS.md D24). With both defined, the app follows the
 # computer's light/dark setting, and the reader can override it in ⋮ → Settings. All text >= 4.5:1.
 # Visual identity (DECISIONS.md D36): nautical-chart palette, one typeface chosen for legibility
-# (Atkinson Hyperlegible Next, SIL OFL, bundled in static/fonts so it works offline). All text >= 4.5:1.
+# (Atkinson Hyperlegible Next, SIL OFL, bundled in app/static/fonts so it works offline). All text >= 4.5:1.
 [theme]
 font = "'Atkinson Hyperlegible Next', sans-serif"
 headingFont = "'Atkinson Hyperlegible Next', sans-serif"
