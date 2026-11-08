@@ -126,7 +126,25 @@ def align(shot: np.ndarray, video: Path, t0: float, span: float = 1.5) -> tuple[
     return best[1], cv2.resize(best[2], (W, H), interpolation=cv2.INTER_AREA), margin
 
 
+def neighbour_frame(video: Path, t: float, k: int) -> tuple[float, np.ndarray]:
+    """The video frame k frames after time t (k may be negative), at 1920x1080."""
+    cap = cv2.VideoCapture(str(video))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    idx = int(round(t * fps)) + k
+    cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+    ok, fr = cap.read()
+    cap.release()
+    return idx / fps, cv2.resize(fr, (W, H), interpolation=cv2.INTER_AREA)
+
+
 def main() -> None:
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--jitter", type=int, default=0,
+                    help="also add the k neighbouring video frames either side of each survey-video annotation "
+                         "(same dots; fish move a few pixels in 33-67 ms). Saved as dataset_jitter<k>.npz")
+    a = ap.parse_args()
     cfg = load_config()
     photos = {p.name: p for p in path(cfg, "raw_photos_dir").rglob("*.png")}
     video = path(cfg, "videos_dir") / VIDEO
@@ -164,18 +182,26 @@ def main() -> None:
                       "image": cv2.resize(clean, (W, H), interpolation=cv2.INTER_AREA), "points": pts * [sx, sy],
                       "ignore": cv2.resize(ign.astype(np.uint8), (W, H), interpolation=cv2.INTER_NEAREST) > 0,
                       "source": name, "time_s": None, "align_margin": None})
-    np.savez_compressed(out_dir / "dataset.npz", images=np.stack([i["image"] for i in items]),
+    for it in items:
+        it["group"] = it["name"]
+    if a.jitter:
+        for it in [x for x in items if x["time_s"] is not None]:
+            for k in [d for d in range(-a.jitter, a.jitter + 1) if d]:
+                t, fr = neighbour_frame(video, it["time_s"], k)
+                items.append({**it, "name": f"{it['name']}{k:+d}f", "image": fr, "time_s": t, "group": it["name"]})
+    fname = f"dataset_jitter{a.jitter}.npz" if a.jitter else "dataset.npz"
+    np.savez_compressed(out_dir / fname, images=np.stack([i["image"] for i in items]),
                         ignore=np.stack([i["ignore"] for i in items]),
                         points=np.array([i["points"] for i in items], dtype=object),
                         meta=json.dumps([{k: v for k, v in i.items() if k not in ("image", "points", "ignore")} | {"n": len(i["points"])}
                                          for i in items]))
-    for i in items:
+    for i in [x for x in items if x["name"] == x["group"]]:
         vis = i["image"].copy()
         for x, y in i["points"]:
             cv2.circle(vis, (int(x), int(y)), 6, (0, 0, 255), 2)
         vis[i["ignore"]] = (vis[i["ignore"]] * 0.4).astype(np.uint8)
         cv2.imwrite(str(out_dir / f"check_{i['name'].replace(' ', '_').replace('@', '_')}.jpg"), vis, [cv2.IMWRITE_JPEG_QUALITY, 80])
-    print("wrote", out_dir / "dataset.npz", [(i["name"], len(i["points"])) for i in items])
+    print("wrote", out_dir / fname, [(i["name"], len(i["points"])) for i in items])
 
 
 if __name__ == "__main__":

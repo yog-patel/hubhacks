@@ -97,9 +97,11 @@ class DensityCounter:
         ck = torch.load(weights, map_location="cpu", weights_only=False)
         self.cfg: dict[str, Any] = ck["cfg"]
         self.loo = ck.get("loo")
-        self.head = Head(c_in=self.cfg.get("c_in", 384), width=self.cfg.get("width", 128))
-        self.head.load_state_dict(ck["state"])
-        self.head.to(device).eval()
+        self.heads = []
+        for st in ck.get("states") or [ck["state"]]:  # an ensemble of seeds (averaged), as evaluated
+            h = Head(c_in=self.cfg.get("c_in", 384), width=self.cfg.get("width", 128))
+            h.load_state_dict(st)
+            self.heads.append(h.to(device).eval())
         self.device = device
         self.mu, self.sd = ck["mu"], ck["sd"]
         self.backbone = Backbone(device)
@@ -117,7 +119,8 @@ class DensityCounter:
         if self.cfg.get("motion"):
             f = np.concatenate([f, motion_channels(zmap, f.shape[1:])])
         f = (f - self.mu[:, None, None]) / self.sd[:, None, None]
-        d = self.head(torch.from_numpy(f)[None].to(self.device))[0, 0].cpu().numpy()
+        x = torch.from_numpy(f)[None].to(self.device)
+        d = torch.stack([h(x)[0, 0] for h in self.heads]).mean(0).cpu().numpy()
         return d / float(self.cfg.get("target_scale", 1.0))
 
     def count_at(self, video: str | Path, t_s: float, cfg: dict[str, Any]) -> tuple[float, np.ndarray]:

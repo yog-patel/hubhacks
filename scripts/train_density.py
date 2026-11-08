@@ -32,7 +32,8 @@ def prep(img: np.ndarray, variant: str, cfg: dict) -> np.ndarray:
     return enhance_frame(img, cfg["enhance"]) if variant == "clahe" else img
 
 
-def cache_features(bb: Backbone, data, variant: str, scale: float, cfg: dict, cdir: Path, motion: bool = False) -> list[dict]:
+def cache_features(bb: Backbone, data, variant: str, scale: float, cfg: dict, cdir: Path, motion: bool = False,
+                   tag: str = "") -> list[dict]:
     """Features for each image and its horizontal flip and two photometric variants (cached on disk)."""
     out = []
     meta = json.loads(str(data["meta"]))
@@ -40,7 +41,7 @@ def cache_features(bb: Backbone, data, variant: str, scale: float, cfg: dict, cd
     for i, m in enumerate(meta):
         z = None
         if motion and m.get("time_s") is not None:
-            zf = cdir / f"motion_{i}.npy"
+            zf = cdir / f"motion_{tag}{i}.npy"
             if not zf.exists():
                 np.save(zf, motion_zmap(video, float(m["time_s"]), cfg))
             z = np.load(zf)
@@ -51,7 +52,7 @@ def cache_features(bb: Backbone, data, variant: str, scale: float, cfg: dict, cd
         for k, (im, flip) in enumerate([(img, False), (img, True),
                                         (cv2.convertScaleAbs(img, alpha=1.15, beta=-10), False),
                                         (cv2.convertScaleAbs(img, alpha=0.85, beta=12), True)]):
-            f = cdir / f"{variant}_{scale}_{i}_{k}.npy"
+            f = cdir / f"{tag}{variant}_{scale}_{i}_{k}.npy"
             if f.exists():
                 feat = np.load(f)
             else:
@@ -67,7 +68,7 @@ def cache_features(bb: Backbone, data, variant: str, scale: float, cfg: dict, cd
             target = dot_map(p, (hp, wp), scale)
             ig = cv2.resize((ign[:, ::-1] if flip else ign).astype(np.uint8), (wp, hp), interpolation=cv2.INTER_AREA) > 0
             views.append({"feat": feat.astype(np.float32), "target": target, "valid": ~ig})
-        out.append({"name": m["name"], "n": int(m["n"]), "views": views})
+        out.append({"name": m["name"], "group": m.get("group", m["name"]), "n": int(m["n"]), "views": views})
     return out
 
 
@@ -140,6 +141,8 @@ def main() -> None:
     ap.add_argument("--steps", type=int, default=1500)
     ap.add_argument("--sigma", type=float, default=1.0)
     ap.add_argument("--seeds", type=int, default=3)
+    ap.add_argument("--dataset", default="dataset.npz")
+    ap.add_argument("--tta", type=float, default=0.0, help="report also the max/mean count over frames within +/- this many s")
     ap.add_argument("--motion", action="store_true", help="add motion z-score channels (survey-video frames only)")
     ap.add_argument("--final", action="store_true", help="also train on all frames and save models/density/head.pt")
     a = ap.parse_args()
@@ -148,14 +151,17 @@ def main() -> None:
     out_dir = path(cfg, "outputs_dir") / "density"
     cdir = out_dir / "feat_cache"
     cdir.mkdir(parents=True, exist_ok=True)
-    data = np.load(out_dir / "dataset.npz", allow_pickle=True)
+    data = np.load(out_dir / a.dataset, allow_pickle=True)
+    dtag = "" if a.dataset == "dataset.npz" else Path(a.dataset).stem + "_"
     t0 = time.time()
     bb = Backbone(device)
-    items = cache_features(bb, data, a.variant, a.scale, cfg, cdir, a.motion)
+    items = cache_features(bb, data, a.variant, a.scale, cfg, cdir, a.motion, dtag)
     print(f"features ready in {time.time() - t0:.0f} s; patch grid {items[0]['views'][0]['feat'].shape[1:]}")
     rows = []
     for k, it in enumerate(items):
-        rest = [x for j, x in enumerate(items) if j != k]
+        if it["name"] != it["group"]:
+            continue  # neighbouring-frame copies are training-only; each group is held out as a whole
+        rest = [x for x in items if x["group"] != it["group"]]
         preds = []
         for s in range(a.seeds):
             h = train(rest, a.steps, device, a.sigma, seed=s)
@@ -167,18 +173,20 @@ def main() -> None:
         print(rows[-1])
     res = {"variant": a.variant, "scale": a.scale, "steps": a.steps, "sigma": a.sigma, "seeds": a.seeds, "folds": rows,
            "device": device, "seconds": round(time.time() - t0)}
-    tag = f"{a.variant}_s{a.scale}_sig{a.sigma}" + ("_motion" if a.motion else "")
+    tag = f"{a.variant}_s{a.scale}_sig{a.sigma}" + ("_motion" if a.motion else "") + (f"_{Path(a.dataset).stem}" if dtag else "") + \
+        (f"_steps{a.steps}" if a.steps != 1500 else "")
     allres = json.loads((out_dir / "eval.json").read_text()) if (out_dir / "eval.json").exists() else {}
     allres[tag] = res
     (out_dir / "eval.json").write_text(json.dumps(allres, indent=1))
     if a.final:
-        h = train(items, a.steps, device, a.sigma, seed=0)
+        heads = [train(items, a.steps, device, a.sigma, seed=sd) for sd in range(a.seeds)]  # same ensemble as evaluated
         wdir = ROOT / "models" / "density"
         wdir.mkdir(parents=True, exist_ok=True)
-        torch.save({"state": h.state_dict(), "cfg": {"variant": a.variant, "scale": a.scale, "width": 128, "motion": a.motion,
-                                                     "c_in": int(items[0]["views"][0]["feat"].shape[0]),
-                                                     "target_scale": SCALE}, "mu": h.mu, "sd": h.sd,
-                    "tag": tag, "trained_on": [it["name"] for it in items], "loo": rows}, wdir / "head.pt")
+        torch.save({"states": [h.state_dict() for h in heads], "state": heads[0].state_dict(),
+                    "cfg": {"variant": a.variant, "scale": a.scale, "width": 128, "motion": a.motion,
+                            "c_in": int(items[0]["views"][0]["feat"].shape[0]), "target_scale": SCALE},
+                    "mu": heads[0].mu, "sd": heads[0].sd, "tag": tag,
+                    "trained_on": [it["name"] for it in items], "loo": rows}, wdir / "head.pt")
         print("saved", wdir / "head.pt")
 
 

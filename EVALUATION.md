@@ -43,10 +43,23 @@ on (14:01: 5 % vs 16 % error) and motion is always available in a survey video.
 * So neither estimator is reliable alone. We do **not** combine them with a rule tuned on two frames. BlueSight reports
   the counter as a **second opinion** per subsample and flags subsamples where the two disagree (one > 1.5× the other
   and ≥ 5 fish apart) as **check first** in Count check, plus an optional heatmap of where the counter sees fish.
-* On the protocol window (1:00–16:00) the two disagree on 8 of 15 subsamples. On the settling-sediment frame at 1:00 the
-  motion detector reports 109 and the counter 21; on murky frames (clarity < 0.25) the counter stays low (0.5–5).
+* On the protocol window (1:00–16:00) the shipped model (an ensemble of the 3 evaluated seeds) gives MeanCount 16.7
+  against the motion detector's 20.7, and the two disagree on 11 of 15 subsamples. On the settling-sediment frame at
+  1:00 the motion detector reports 109 and the counter 34.5; on murky frames (clarity < 0.25) the counter gives 1.7–11.
 * Cost: 5.5 s per subsample frame on the M4 (≈ 80 s per 15-frame video, cached afterwards).
-* The final model (`models/density/head.pt`, 2 MB) is trained on all five frames. Every count-check correction adds
+**Second round of experiments (rejected, kept here so nobody repeats them blindly):**
+
+| Idea | 14:01 (36) | 22:00 (102) | Average error | Decision |
+|---|---|---|---|---|
+| Kept model (2× + motion) | 37.8 | 30.5 | 36 % | kept |
+| + neighbouring video frames (±1, ±2 frames, same dots) as extra training views | 52.8 | 24.0 | 32 % (T2 frames improved) | rejected: worse on both survey-video frames, the domain it is used on |
+| Protocol ±0.5 s rule at inference (max / mean over t−0.5 … t+0.5 s) | max 37.8, mean 29.2 | max 30.5, mean 25.3 | no gain | rejected: the annotated instant is already the best frame (which also confirms the alignment) |
+
+Selection note: the neighbouring-frame variant has the lower 5-frame average, so under a pure "average error" rule it
+would win. We weigh the two survey-video frames first because that is the footage Coastal Action will analyse; this is
+stated here rather than hidden.
+
+* The final model (`models/density/head.pt`, 2 MB) is an ensemble of the 3 evaluated seeds, trained on all five frames. Every count-check correction adds
   labelled frames; retraining with `scripts/train_density.py --final` is how the counter improves.
 
 ## v3 (2026-11-08): measured on an Apple M4 MacBook (16 GB), MPS
