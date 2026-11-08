@@ -47,7 +47,7 @@ AutoModel.from_pretrained('facebook/dinov2-small')"
 | Page | What it's for |
 |---|---|
 | **How it works** | Plain-language guide: the four steps and every term on screen (MeanCount, MaxN, image clarity, watch list, blind count). |
-| **Count check** | The 15 protocol subsample frames with the AI's numbered marks. Remove wrong marks (one by one or a whole category such as "too murky") and add missed fish; or **blind count** for the protocol's QC (agreement vs the 95 % target, < 6 % difference per frame). Checked counts replace the AI's in the report; corrections export as training data (`outputs/training_labels/`). |
+| **Count check** | Subsamples where the motion detector and the **trained fish counter** disagree are listed first (⚑), with an optional heatmap of where the counter sees fish. The 15 protocol subsample frames with the AI's numbered marks. Remove wrong marks (one by one or a whole category such as "too murky") and add missed fish; or **blind count** for the protocol's QC (agreement vs the 95 % target, < 6 % difference per frame). Checked counts replace the AI's in the report; corrections export as training data (`outputs/training_labels/`). |
 | **Analyze** | Drag and drop or pick a video, check water clarity with a before/after slider and the visibility score, choose the window (protocol 15 min, custom, whole video), and run. The five steps (Enhance → Detect → Track → Identify → Count) light up as they run. Shows "Running locally on <device>". |
 | **Results** | **Survey details** (water temperature, pole visibility, juveniles, observer; typed in, never fetched), **watch-list / temperature-range / new-arrival alerts**, **Excel report in the protocol layout**, headline cards (fish counted, species found, items to review, footage with low visibility), counts by species (MaxN, MeanCount, confidence), fish-and-visibility timeline, original vs enhanced frame, annotated video, CSV/JSON downloads. |
 | **Review queue** | One item at a time, most unfamiliar first: evidence clip, best crops, top-3 matches as bars with the thresholds marked, visibility badge. Species names are picked from the Nova Scotia list (or typed). **New species** (`N`), **Existing species** (`E`), **Reject: not a fish** (`X`), skip (`J`), back (`K`). Progress counter. |
@@ -63,7 +63,9 @@ Type your name in the sidebar before reviewing; it's saved with every decision (
 | `python scripts/run_video.py "data/videos/T1-STAT2 411.MP4"` | Analyse the protocol window (skip the first minute, analyse 15 min). Writes `outputs/runs/<video>/<start>-<end>s/{report.json, report.csv, species_summary.csv, annotated.mp4}` and evidence packages in `outputs/flags/<flag_id>/` |
 | `... --start 1290 --duration 60` / `--full` | Custom window (seconds) / whole video minus the first and last minute |
 | `python scripts/preview_enhance.py <video> --times 420,1320` | Before/after enhancement images with visibility scores → `outputs/enhance_preview/` |
+| `python scripts/fetch_reference_photos.py` | One-time, optional: openly licensed field-guide photos (iNaturalist CC0/CC-BY/CC-BY-SA; credits in `data/reference_web/attribution.csv`). Display only, never used for labels (EVALUATION.md v5) |
 | `python scripts/setup_models.py` | One-time model download (skips models already in `models/hf/`; copy that folder to skip it entirely) |
+| `python scripts/density_data.py` · `train_density.py --variant raw --scale 2.0 --motion --final` | Rebuild the dot-labelled training set and retrain/evaluate the fish counter (leave-one-frame-out; results in EVALUATION.md v4) |
 | `python scripts/build_registry.py` | Rebuild species prototypes from `data/reference_images/` and `outputs/registry/` (held-out species excluded) |
 | `python scripts/evaluate.py [--tune]` | Measure and write `EVALUATION.md`; `--tune` re-tunes T_KNOWN, T_UNKNOWN, V_MIN and saves them to `config.yaml` |
 | `python scripts/experiments.py <name>` | Phase-2 model experiments (enhance, detector, owl, tracker, crops, prototypes, video_id, fps) → `outputs/eval/experiments.json` |
@@ -103,14 +105,16 @@ tests/           pytest (identify, count, registry, v2 units, offline)
 outputs/         everything generated (bluesight.db, runs/, flags/, registry/, cache/, logs/, eval/, screenshots/)
 ```
 
-Project documents: [QUICKSTART.md](QUICKSTART.md) · [RESOURCES.md](RESOURCES.md) · [DECISIONS.md](DECISIONS.md) · [EVALUATION.md](EVALUATION.md) · [DEMO.md](DEMO.md) · [AUDIT.md](AUDIT.md) · [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md)
+Project documents: [QUICKSTART.md](QUICKSTART.md) · [PRESENTATION.md](PRESENTATION.md) · [RESOURCES.md](RESOURCES.md) · [DECISIONS.md](DECISIONS.md) · [EVALUATION.md](EVALUATION.md) · [DEMO.md](DEMO.md) · [AUDIT.md](AUDIT.md) · [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md)
 
 ## Models and licences
 
 | Component | Model / library | Licence |
 |---|---|---|
 | Embedder (default) | BioCLIP `imageomics/bioclip` via `open_clip` | MIT (weights and code) |
-| Embedder (fallback) | DINOv2-small `facebook/dinov2-small` | Apache-2.0 |
+| Embedder (fallback) and fish-counter backbone | DINOv2-small `facebook/dinov2-small` | Apache-2.0 |
+| Field-guide photos | iNaturalist observers (credited per photo in `data/reference_web/attribution.csv`) | CC0 / CC-BY / CC-BY-SA |
+| Fish counter head | trained here on the biologists' tally dots (`models/density/head.pt`, 2 MB; `scripts/train_density.py`) | project code |
 | Detector (optional) | OWLv2 `google/owlv2-base-patch16-ensemble` (and `-large-patch14`, experiments only) via `transformers` | Apache-2.0 |
 | Detector (default) | BlueSight motion detector (OpenCV + PyTorch median) | project code |
 | Tracker | ByteTrack via `supervision` 0.26.1 | MIT |

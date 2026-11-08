@@ -52,7 +52,10 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 3. The cards update: **MeanCount 63 with your checks · AI alone 82**. *Say:* the AI alone misses faint fish and marks
    some sand, so a person confirms each protocol frame; every correction is saved as training data
    (*Save corrections as training data*).
-4. Optional: switch to **Blind count (quality control)**, type a count without seeing the marks, save: the toast shows
+4. Toggle **Show where the counting model sees fish**: a cyan glow marks where the counter trained on the biologists'
+   dots sees fish (mid-water by the pole top), while many motion boxes sit on the sand. The ⚑ in the subsample list
+   means the two AI estimates disagree, so that frame is checked first.
+5. Optional: switch to **Blind count (quality control)**, type a count without seeing the marks, save: the toast shows
    the % difference against the protocol's 6 % rule, and the *Blind-count agreement* card the 95 % target.
 
 ## 3. A held-out species is flagged as unfamiliar instead of mislabelled (~1 min)

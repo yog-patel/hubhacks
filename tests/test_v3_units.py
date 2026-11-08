@@ -104,3 +104,32 @@ def test_excel_export_has_protocol_columns(tmp_path):
     assert ws.cell(2, head.index("Total Fish Count") + 1).value == 13      # the checked count replaces the AI's
     summary = {r[0].value: r[1].value for r in wb["Summary"].iter_rows()}
     assert summary["Water temperature (°C)"] == 14.5
+
+
+def test_density_dot_map_and_motion_channels():
+    import numpy as np
+
+    from bluesight.density import PATCH, dot_map, motion_channels
+
+    pts = np.array([[5, 5], [20, 5], [20, 6], [10_000, 5]], np.float32)  # last one is off the grid
+    m = dot_map(pts, (4, 4))
+    assert m.sum() == 3 and m[0, 0] == 1 and m[0, 1] == 2
+    assert dot_map(pts, (4, 4), scale=2.0)[0, 2] == 2          # (40, 10) at 2x falls in patch column 2 (28-41 px)
+    mc = motion_channels(None, (3, 5))
+    assert mc.shape == (4, 3, 5) and mc.sum() == 0             # no video: zeros, "available" flag off
+    z = np.zeros((3 * PATCH, 5 * PATCH), np.float16)
+    z[:PATCH, :PATCH] = 10
+    mc = motion_channels(z, (3, 5))
+    assert mc[3].min() == 1 and mc[2, 0, 0] == 1 and mc[2, 2, 4] == 0
+
+
+def test_fieldguide_lookalikes_display_only(tmp_path):
+    import numpy as np
+
+    from bluesight.fieldguide import lookalikes, photos
+
+    P = np.eye(3, dtype=np.float32)
+    out = lookalikes(np.array([0.1, 0.9, 0.2], np.float32), ["a", "b", "c"], P, 2)
+    assert [o["species"] for o in out] == ["b", "c"]
+    assert lookalikes(None, ["a"], P[:1]) == []
+    assert photos(tmp_path) == {}  # no attribution file: no guide, no crash

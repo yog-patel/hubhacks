@@ -209,3 +209,29 @@ so Windows needs no extra install. Copying `models/` from another computer skips
 fish (small, slender, silvery, mid-water schools over sand in September) fit Atlantic silverside, juvenile herring or
 sand lance. We did not rename it: identification is the biologists' call, and the review queue lets them rename or
 confirm it.
+
+# v4 decisions (branch `v4-accuracy`, 2026-11-08)
+
+## D32. A density counter, not a box detector
+The labels are dots, not boxes, and only five frames have them. Density counting (predict fish per patch, sum) learns
+directly from dots and from the biologists' own counting rule; a box detector would need invented box sizes. DINOv2-small
+is frozen (already on disk, Apache-2.0, 22 M parameters) so only a 0.5 M-parameter head is trained: seconds per run and no
+risk of wrecking the backbone with five images.
+
+## D33. Choosing the configuration
+Leave-one-frame-out on all five annotated frames; kept the lowest average error, tie broken by the survey-video folds
+(EVALUATION v4). 3× resolution and CLAHE input were measured and rejected. No threshold or combination rule was tuned on the
+two survey-video frames.
+
+## D34. Second opinion, not replacement
+The counter is better than the motion detector at 14:01 and worse at 22:00, so it does not replace the motion-based count
+(which also carries species and tracks). It is reported next to it, flags disagreements for human checking first, and draws
+a heatmap in Count check. Both counts appear in the Excel file. Config: `density.*`; `density.enabled: false` turns it off.
+
+## D35. Web reference photos are a field guide, not training data for identification
+Downloaded once with the user's approval (iNaturalist, CC0/CC-BY/CC-BY-SA only, attribution committed, images not).
+Measured (EVALUATION v5): no extra harm on held-out survey crops, but the real video crab's closest web species is blue
+crab (0.85 > T_KNOWN) and the web green-crab photos rank 12th, so registry prototypes from web photos would create false
+watch-list alarms. Kept out of the registry; shown to reviewers only. Green crab photos are stored separately
+(data/reference_web_heldout/) so the held-out demo stays honest; they are shown in the field guide but were never in the
+registry. NC-licensed photos were excluded to keep everything permissive.

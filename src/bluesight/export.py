@@ -16,7 +16,7 @@ from . import count as CNT
 from .survey import display_name, clarity_word
 
 NON_SPECIES = ("total_fish_count", "invertebrate_count", "subsample_t_s", "time", "visibility", "frame_t_s",
-               "frame_idx")
+               "frame_idx", "density_count", "estimates_disagree")
 
 
 def _species_cols(report: dict[str, Any]) -> list[str]:
@@ -64,7 +64,7 @@ def workbook_bytes(report: dict[str, Any], cfg: dict[str, Any], survey: dict[str
     named = [c for c in sp if c not in (CNT.UNKNOWN_LABEL, CNT.UNFAMILIAR_LABEL) and not c.startswith("Unconfirmed")]
     headers = (["Video ID", "Site", "Date", "Sub-sample #", "Video time", "Image clarity",
                 "Clarity score (0-1)", "Total Fish Count", "Invertebrate count", "Total species observed"]
-               + [_col_title(c, cfg) for c in sp] + ["Counted by", "Notes"])
+               + [_col_title(c, cfg) for c in sp] + ["Counting-model estimate", "Counted by", "Notes"])
     ws.append(headers)
     for i, s in enumerate(report.get("subsamples", []), start=1):
         chk = by_sub.get(round(s["subsample_t_s"], 3))
@@ -76,11 +76,13 @@ def workbook_bytes(report: dict[str, Any], cfg: dict[str, Any], survey: dict[str
             note.append(f"{chk['mode']} check by {chk['reviewer'] or 'reviewer'}: AI counted {chk['ai_fish']} fish")
             if chk.get("notes"):
                 note.append(chk["notes"])
+        if s.get("estimates_disagree") and not chk:
+            note.append("AI estimates disagree: check this frame")
         if s.get("visibility", 1) < float(report["thresholds"]["V_MIN"]):
             note.append("low visibility: species ID not attempted")
         ws.append([report["video_file"], survey.get("site") or report["site"], survey.get("date") or report["date"], i,
                    s["time"], clarity_word(s.get("visibility", 0), cfg), s.get("visibility"), fish, inv, n_species]
-                  + [s.get(c, 0) for c in sp]
+                  + [s.get(c, 0) for c in sp] + [s.get("density_count")]
                   + [f"{chk['reviewer']} (checked)" if chk else "BlueSight (AI, not checked)", "; ".join(note)])
 
     # ---------------------------------------------------------------- Summary
@@ -98,6 +100,7 @@ def workbook_bytes(report: dict[str, Any], cfg: dict[str, Any], survey: dict[str
         ("Sub-samples", f"{len(report.get('subsamples', []))} (one every {report['protocol']['subsample_interval_s']} s)"),
         ("MeanCount, total fish (AI)", round(report.get("MeanCount_total_fish", 0), 2)),
         ("MeanCount, total fish (with checks)", round(cs["MeanCount_checked"], 2) if cs else "no subsamples checked"),
+        ("MeanCount, counting model (second opinion)", (report.get("density") or {}).get("MeanCount_density", "not run")),
         ("Sub-samples checked by a person", f"{cs.get('n_checked', 0)} of {len(report.get('subsamples', []))}"),
         ("QC: blind-count agreement", f"{cs['blind_agreement_pct']:.0f}% over {cs['n_blind']} frames (target 95%)"
          if cs.get("blind_agreement_pct") is not None else "not done"),

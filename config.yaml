@@ -76,6 +76,14 @@ detector:
     score_threshold: 0.10
     grid: 3                 # tile the frame grid x grid (fish are small)
 
+# Fish counter trained on the biologists' tally dots (DINOv2-small features at 2x + motion channels; EVALUATION.md v4).
+# Gives a second, independent count for every protocol subsample frame and a "where are the fish" map for Count check.
+density:
+  enabled: true
+  weights: models/density/head.pt
+  disagree_ratio: 1.5      # subsamples where one estimate is > 1.5x the other (and differ by >= 5 fish) are checked first
+  disagree_min_diff: 5
+
 tracker:
   track_activation_threshold: 0.2
   lost_track_buffer: 4      # NOTE: supervision scales this by frame_rate/30, so at 2 fps values < 15 mean 0 frames (E4)

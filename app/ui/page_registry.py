@@ -16,7 +16,7 @@ def page() -> None:
     T.header("Reference library", "Species registry",
              "The species BlueSight can recognise, the watch list of invasive and unexpected species, and the expected "
              "Nova Scotia species list. Adding images in the review queue takes effect immediately. Nothing is retrained.")
-    t1, t2, t3 = st.tabs(["Recognised species", "Watch list", "Expected species list"])
+    t1, t2, t3 = st.tabs(["Recognised species", "Watch list", "Field guide: expected species"])
     with t1:
         gallery()
     with t2:
@@ -65,13 +65,31 @@ def watch_tab() -> None:
 
 def expected_tab() -> None:
     cfg = C.cfg()
-    st.html('<p class="bs-small">Species expected in Nova Scotia nearshore surveys. A species confirmed in review that is '
-            'NOT on this list or the watch list is reported as a possible new arrival. Edit the list in '
-            '<code>config.yaml → species_candidates</code>.</p>')
+    st.html('<p class="bs-small">Species expected in Nova Scotia nearshore surveys, with openly licensed reference photos '
+            '(iNaturalist, CC0 / CC-BY / CC-BY-SA, credited below each photo). A species confirmed in review that is NOT on '
+            'this list or the watch list is reported as a possible new arrival. The photos are a field guide for people; '
+            'BlueSight never labels or counts from them (web photos do not match murky video; see EVALUATION.md). '
+            'Edit the list in <code>config.yaml → species_candidates</code>.</p>')
     inv = set(cfg.get("invertebrate_species") or [])
-    st.dataframe(pd.DataFrame([{"Common name": s["common"], "Scientific name": s["scientific"],
-                                "Group": "invertebrate" if s["name"] in inv else "fish"} for s in SV.expected_species(cfg)]),
-                 hide_index=True, width="stretch")
+    try:
+        ph = C.fieldguide()[0]
+    except Exception:
+        ph = {}
+    sp = SV.expected_species(cfg) + [w for w in (cfg.get("watch_list") or [])
+                                     if w["name"] not in {s["name"] for s in SV.expected_species(cfg)}]
+    cols = st.columns(4, gap="small")
+    for i, s in enumerate(sp):
+        with cols[i % 4], st.container(border=True, key=f"fg_{s['name']}"):
+            pics = ph.get(s["name"], [])
+            if pics:
+                st.image(pics[0]["path"], width="stretch", alt=f"Reference photo of {s['common']}")
+            else:
+                st.html('<div class="bs-noimg">No photo yet</div>')
+            grp = "invertebrate" if s["name"] in inv or s.get("group") == "invertebrate" else "fish"
+            st.html(f'<p class="bs-sp-name">{T.esc(s["common"][:1].upper() + s["common"][1:])}</p>'
+                    f'<p class="bs-small"><i>{T.esc(s["scientific"])}</i> · {grp} · {len(pics)} photos'
+                    + (f'<br>{T.esc(pics[0]["attribution"])} · <a href="{T.esc(pics[0]["observation"])}">source</a>' if pics else "")
+                    + '</p>')
 
 
 def gallery() -> None:

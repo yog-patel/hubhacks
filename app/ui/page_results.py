@@ -213,6 +213,11 @@ def page() -> None:
     sv = survey_form(rep, cfg)
     al = SV.alerts(rep, C.db(), cfg, sv)
     show_alerts(al)
+    dn = rep.get("density") or {}
+    if dn.get("MeanCount_density") is not None:
+        st.info(f"Second opinion from the trained counting model: MeanCount **{dn['MeanCount_density']:.1f}** "
+                f"(motion detector {rep['MeanCount_total_fish']:.1f}). The two disagree on **{dn['n_disagree']}** of "
+                f"{len(rep['subsamples'])} subsamples; Count check lists those first.", icon=":material/insights:")
     chk_rows = CC.checks(C.db(), rep["run_id"])
     chk = CC.summary(rep, chk_rows)
     if chk["n_checked"]:
