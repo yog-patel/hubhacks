@@ -235,3 +235,15 @@ crab (0.85 > T_KNOWN) and the web green-crab photos rank 12th, so registry proto
 watch-list alarms. Kept out of the registry; shown to reviewers only. Green crab photos are stored separately
 (data/reference_web_heldout/) so the held-out demo stays honest; they are shown in the field guide but were never in the
 registry. NC-licensed photos were excluded to keep everything permissive.
+
+## D36. Visual identity (UI pass with Anthropic's frontend-design guidance)
+* **Subject first:** a field tool for Coastal Action staff working with murky Nova Scotia survey video.
+* **Signature element:** the banded 2 m visibility pole seen in every survey video (white pipe, black tape every 0.5 m)
+  is the progress bar for the four steps and the 15 check points. It is the one bold element; everything else is quiet.
+* **Palette from nautical charts:** chart paper `#F1F4F0`, deep-water ink `#11293A`, sounding blue `#2A5D7C`, shallow
+  tint `#DDE9EC`, kelp olive `#4F5E26` for "done", survey-flag orange `#A93A0B` only for "check first" and alerts. Dark
+  mode mirrors it. Text contrast ≥ 4.5:1.
+* **Type:** Atkinson Hyperlegible Next (Braille Institute; SIL Open Font License), one family, chosen for legibility by
+  non-technical staff. Bundled in `static/fonts/` and served by Streamlit's static serving, so the app stays offline.
+* **Removed generic tells:** ALL-CAPS labels, monospace number badges, step eyebrows, identical shadowed cards, long
+  intros. Labels are sentence case; panels are flat with small radii.

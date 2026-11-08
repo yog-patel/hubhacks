@@ -120,6 +120,7 @@ Project documents: [QUICKSTART.md](QUICKSTART.md) · [PRESENTATION.md](PRESENTAT
 | Tracker | ByteTrack via `supervision` 0.26.1 | MIT |
 | Energy estimate | CodeCarbon `OfflineEmissionsTracker` | MIT |
 | Excel export | openpyxl | MIT |
+| Typeface | Atkinson Hyperlegible Next (bundled in `static/fonts/`, works offline) | SIL Open Font License |
 | App | Streamlit (Apache-2.0), Altair/Vega-Lite (BSD-3) | permissive |
 | Video / maths | OpenCV (Apache-2.0), NumPy/SciPy/pandas (BSD), PyTorch (BSD-3) | permissive |
 | Video encoding | PyAV (BSD-3) bundling FFmpeg (LGPL). Uses Apple's `h264_videotoolbox` hardware encoder | LGPL |

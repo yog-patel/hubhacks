@@ -10,6 +10,7 @@ address = "localhost"             # only reachable from this machine (not the lo
 headless = true
 maxUploadSize = 8192              # MB; 4K survey videos are large
 runOnSave = false
+enableStaticServing = true        # serves static/ (the bundled font) from this computer; nothing is fetched online
 
 [client]
 toolbarMode = "viewer"            # keeps the ⋮ menu, where Settings → theme (Light / Dark / System) lives
@@ -21,36 +22,51 @@ showWarningOnDirectExecution = false
 
 # Light and dark themes (see app/ui/theme.py and DECISIONS.md D24). With both defined, the app follows the
 # computer's light/dark setting, and the reader can override it in ⋮ → Settings. All text >= 4.5:1.
+# Visual identity (DECISIONS.md D36): nautical-chart palette, one typeface chosen for legibility
+# (Atkinson Hyperlegible Next, SIL OFL, bundled in static/fonts so it works offline). All text >= 4.5:1.
 [theme]
-font = "sans-serif"
+font = "'Atkinson Hyperlegible Next', sans-serif"
+headingFont = "'Atkinson Hyperlegible Next', sans-serif"
 codeFont = "monospace"
-baseRadius = "0.625rem"
-buttonRadius = "0.5rem"
+baseRadius = "0.25rem"
+buttonRadius = "0.25rem"
 showWidgetBorder = true
 showSidebarBorder = true
 
+[[theme.fontFaces]]
+family = "Atkinson Hyperlegible Next"
+url = "app/static/fonts/AtkinsonHyperlegibleNext-Variable.woff2"
+weight = "200 800"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Atkinson Hyperlegible Next"
+url = "app/static/fonts/AtkinsonHyperlegibleNext-Italic-Variable.woff2"
+weight = "200 800"
+style = "italic"
+
 [theme.light]
-primaryColor = "#0A6680"          # deep teal (6.5:1 with white text)
-backgroundColor = "#F5F7F8"
-secondaryBackgroundColor = "#EDF2F5"
-textColor = "#0D1B24"
-borderColor = "#D5DEE3"
-linkColor = "#0A6680"
-dataframeHeaderBackgroundColor = "#EDF2F5"
+primaryColor = "#2A5D7C"          # sounding blue (6.9:1 with white text)
+backgroundColor = "#F1F4F0"       # chart paper
+secondaryBackgroundColor = "#E4ECEB"
+textColor = "#11293A"             # deep-water ink
+borderColor = "#C9D5D4"
+linkColor = "#2A5D7C"
+dataframeHeaderBackgroundColor = "#E4ECEB"
 
 [theme.light.sidebar]
-backgroundColor = "#EEF2F4"
-secondaryBackgroundColor = "#FFFFFF"
+backgroundColor = "#E6ECE8"
+secondaryBackgroundColor = "#F7F9F6"
 
 [theme.dark]
-primaryColor = "#1F7C96"          # 4.8:1 with white button text; text accents use the lighter #5BB8D3
-backgroundColor = "#0B141A"       # deep water
-secondaryBackgroundColor = "#17242E"
-textColor = "#E3EBEF"
-borderColor = "#25343F"
-linkColor = "#6CC4DD"
-dataframeHeaderBackgroundColor = "#17242E"
+primaryColor = "#3B7BA0"          # 4.7:1 with white button text
+backgroundColor = "#0E1C26"       # night water
+secondaryBackgroundColor = "#182B37"
+textColor = "#E2EBEE"
+borderColor = "#2A3F4C"
+linkColor = "#8CC3DC"
+dataframeHeaderBackgroundColor = "#182B37"
 
 [theme.dark.sidebar]
-backgroundColor = "#0E1920"
-secondaryBackgroundColor = "#17242E"
+backgroundColor = "#11222D"
+secondaryBackgroundColor = "#182B37"

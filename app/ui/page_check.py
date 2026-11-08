@@ -155,7 +155,8 @@ def page() -> None:
         f'title="{x["time"]}">{i + 1}</i>' for i, x in enumerate(subs))
     if len(subs) > 1:
         st.html(f'<div class="bs-strip" style="--n:{len(subs)}" role="img" aria-label="check point progress">{tiles}</div>'
-                '<p class="bs-strip-key">Green = done · orange outline = the two AI counts disagree, check these first</p>')
+                '<p class="bs-strip-key"><b class="g">Green</b> done. <b class="o">Orange line</b>: the two AI counts disagree, '
+                'so check these first.</p>')
     sub = subs[pick]
     dets = db.q("SELECT t_s, label FROM detections WHERE run_id=? AND abs(t_s-?)<=0.6", (rep["run_id"], sub["subsample_t_s"]))
     ft = CC.frame_time_for(sub, dets, float(cfg["protocol"]["count_window_s"]))
