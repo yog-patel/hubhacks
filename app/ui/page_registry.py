@@ -13,10 +13,8 @@ from . import theme as T
 
 
 def page() -> None:
-    T.header("Reference library", "Species registry",
-             "The species BlueSight can recognise, the watch list of invasive and unexpected species, and the expected "
-             "Nova Scotia species list. Adding images in the review queue takes effect immediately. Nothing is retrained.")
-    t1, t2, t3 = st.tabs(["Recognised species", "Watch list", "Field guide: expected species"])
+    T.header("", "Species", "What BlueSight knows, what to watch for, and a photo guide.")
+    t1, t2, t3 = st.tabs(["Known to BlueSight", "Watch list", "Field guide"])
     with t1:
         gallery()
     with t2:
@@ -27,9 +25,8 @@ def page() -> None:
 
 def watch_tab() -> None:
     cfg, db = C.cfg(), C.db()
-    st.html('<p class="bs-small">When a watch-list species is counted or confirmed in review, BlueSight shows a red alert on '
-            'the results and in the Excel report. If you enter a usual water-temperature range and the survey temperature '
-            'falls outside it, you get a range alert too. Leave a range empty if you are not sure of it.</p>')
+    st.caption("These raise a red alert when seen. Add a usual temperature range to get a warning when the water is "
+               "outside it. Leave it empty if unsure.")
     rows = SV.watch_list(db, cfg, include_inactive=True)
     df = pd.DataFrame([{"Common name": r["common"], "Scientific name": r["scientific"], "Group": r["grp"] or "fish",
                         "Why we watch it": r["reason"], "Min °C": r["temp_min_c"], "Max °C": r["temp_max_c"],
@@ -41,9 +38,10 @@ def watch_tab() -> None:
         "Min °C": st.column_config.NumberColumn(min_value=-2.0, max_value=35.0, step=0.5, format="%.1f"),
         "Max °C": st.column_config.NumberColumn(min_value=-2.0, max_value=35.0, step=0.5, format="%.1f"),
         "Why we watch it": st.column_config.TextColumn(width="large"),
+        "Active": st.column_config.CheckboxColumn("On"),
     })
     if st.button("Save watch list", icon=":material/save:", disabled=not C.reviewer(),
-                 help="Add your name under Reviewer in the sidebar first." if not C.reviewer() else None):
+                 help="Type your name in the sidebar first." if not C.reviewer() else None):
         keep = set()
         for r in ed.to_dict("records"):
             name = str(r.get("Common name") or "").strip()
@@ -65,11 +63,7 @@ def watch_tab() -> None:
 
 def expected_tab() -> None:
     cfg = C.cfg()
-    st.html('<p class="bs-small">Species expected in Nova Scotia nearshore surveys, with openly licensed reference photos '
-            '(iNaturalist, CC0 / CC-BY / CC-BY-SA, credited below each photo). A species confirmed in review that is NOT on '
-            'this list or the watch list is reported as a possible new arrival. The photos are a field guide for people; '
-            'BlueSight never labels or counts from them (web photos do not match murky video; see EVALUATION.md). '
-            'Edit the list in <code>config.yaml → species_candidates</code>.</p>')
+    st.caption("Nova Scotia species with open-licence photos. A visual aid only; BlueSight never counts from these.")
     inv = set(cfg.get("invertebrate_species") or [])
     try:
         ph = C.fieldguide()[0]
@@ -87,7 +81,7 @@ def expected_tab() -> None:
                 st.html('<div class="bs-noimg">No photo yet</div>')
             grp = "invertebrate" if s["name"] in inv or s.get("group") == "invertebrate" else "fish"
             st.html(f'<p class="bs-sp-name">{T.esc(s["common"][:1].upper() + s["common"][1:])}</p>'
-                    f'<p class="bs-small"><i>{T.esc(s["scientific"])}</i> · {grp} · {len(pics)} photos'
+                    f'<p class="bs-small"><i>{T.esc(s["scientific"])}</i>'
                     + (f'<br>{T.esc(pics[0]["attribution"])} · <a href="{T.esc(pics[0]["observation"])}">source</a>' if pics else "")
                     + '</p>')
 
@@ -98,15 +92,12 @@ def gallery() -> None:
     rows = C.registry(read_only=True).list_species()
     held = cfg.get("held_out_species") or []
     if not rows:
-        T.empty_state("The registry is empty",
-                      "BlueSight can't recognise any species yet, so every fish will go to the review queue.",
-                      "Build it from the labelled photos with <code>python scripts/build_registry.py</code>, or approve a "
-                      "species in the review queue.")
+        T.empty_state("No species yet", "Name animals on the New animals page and they'll appear here.")
         return
     n_new = sum(1 for r in rows if r["source"] == "approved")
     st.html(f'<div class="bs-facts"><span><b>{len(rows)}</b> species</span>'
-            f'<span><b>{sum(r["n_images"] or 0 for r in rows)}</b> reference images</span>'
-            f'<span><b>{n_new}</b> added through review</span></div>')
+            f'<span><b>{sum(r["n_images"] or 0 for r in rows)}</b> pictures</span>'
+            f'<span><b>{n_new}</b> named by you</span></div>')
     q = st.text_input("Find a species", placeholder="Search species…", key="reg_q", label_visibility="collapsed",
                       icon=":material/search:")
     if q.strip():
@@ -126,19 +117,16 @@ def gallery() -> None:
             else:
                 st.html('<div class="bs-noimg">No image on this computer</div>')
             name = SV.display_name(r["name"], cfg)
-            badges = (T.plain_badge("Added in review", "ok", "★") if is_new else
-                      T.plain_badge("From labelled photos", "info"))
+            badges = (T.plain_badge("Named by you", "ok", "★") if is_new else
+                      T.plain_badge("From survey photos", "info"))
             if not r["active"]:
                 badges += " " + T.plain_badge("Inactive", "muted")
             st.html(f'<p class="bs-sp-name">{T.esc(name[:1].upper() + name[1:])}</p>'
                     f'<div>{badges}</div>'
                     f'<dl class="bs-meta"><dt>Added</dt><dd>{T.esc((r["date_added"] or "")[:10])}</dd>'
-                    f'<dt>Approved by</dt><dd>{T.esc(r["approved_by"] or "—")}</dd>'
-                    f'<dt>Reference images</dt><dd>{r["n_images"] or 0}</dd>'
-                    f'<dt>Registry key</dt><dd><code>{T.esc(r["name"])}</code></dd></dl>')
+                    f'<dt>By</dt><dd>{T.esc(r["approved_by"] or "survey photos")}</dd>'
+                    f'<dt>Pictures</dt><dd>{r["n_images"] or 0}</dd></dl>')
             if len(imgs) > 1:
                 st.image(imgs[1:7], width=64, alt=[f"More reference images of {label}"] * len(imgs[1:7]))
     if held:
-        st.caption("Held out on purpose, to test that unfamiliar species get flagged: "
-                   + ", ".join(h.replace("_", " ").capitalize() for h in held)
-                   + ". They are never loaded from the labelled photos; they only appear here if a reviewer approves them.")
+        st.caption("Kept out on purpose for the demo: " + ", ".join(h.replace("_", " ").capitalize() for h in held) + ".")

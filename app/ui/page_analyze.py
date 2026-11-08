@@ -44,10 +44,7 @@ def stage_of(frac: float, msg: str) -> tuple[set[int], set[int]]:
 
 def page() -> None:
     cfg = C.cfg()
-    T.header("Step 1 of 3 · Analyze", "Analyze a survey video",
-             "Choose a video, check how clear the water is, then run it. BlueSight finds and follows each fish, matches it "
-             "against the species registry and counts it with Coastal Action's protocol. Anything it's unsure about "
-             "goes to your review queue.", step=1)
+    T.header("", "Analyze a video", "Pick a survey video and press Analyze.", step=1)
 
     vdir = path(cfg, "videos_dir")
     vids = sorted(p for p in vdir.glob("*") if p.suffix.lower() in VIDEO_EXTS) if vdir.exists() else []
@@ -55,10 +52,9 @@ def page() -> None:
     vids += sorted(p for p in up_dir.glob("*") if p.suffix.lower() in VIDEO_EXTS) if up_dir.exists() else []
 
     with st.container(border=True):
-        T.section("Choose the footage", "1")
-        up = st.file_uploader("Drag and drop a survey video here, or browse", type=[e.strip(".") for e in VIDEO_EXTS],
-                              help="MP4, MOV, AVI, MKV or M4V. The file is copied to outputs/uploads/ on this computer; "
-                                   "it is never sent anywhere.")
+        T.section("Video", "1")
+        up = st.file_uploader("Add a video", type=[e.strip(".") for e in VIDEO_EXTS], label_visibility="collapsed",
+                              help="MP4, MOV, AVI, MKV or M4V. Copied to this computer only.")
         if up is not None:
             dest = up_dir / up.name
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -68,14 +64,11 @@ def page() -> None:
             if dest not in vids:
                 vids.append(dest)
         if not vids:
-            T.empty_state("No survey videos yet",
-                          "BlueSight looks for videos in <code>data/videos/</code>. None were found.",
-                          "Drop a video above, or add one to the project folder and run "
-                          "<code>python scripts/prepare_resources.py</code>.")
+            T.empty_state("No videos yet", "Drop a survey video in the box above.")
             return
         names = [str(v) for v in vids]
         default = names.index(st.session_state["video_pick"]) if st.session_state.get("video_pick") in names else 0
-        video = Path(st.selectbox("Video", names, index=default, format_func=lambda p: Path(p).name, key="video_select"))
+        video = Path(st.selectbox("Video", names, index=default, format_func=lambda p: Path(p).name, key="video_select", label_visibility="collapsed"))
         try:
             info = video_info(video)
         except IOError:
@@ -83,64 +76,59 @@ def page() -> None:
                      "Try re-exporting it as H.264 or HEVC MP4.")
             return
         st.html(f'<div class="bs-facts" style="margin-bottom:0"><span>Length <b>{C.fmt_t(info.duration_s)}</b></span>'
-                f'<span>Resolution <b>{info.width}×{info.height}</b></span><span>Frame rate <b>{info.fps:.2f} fps</b></span>'
-                f'<span>Analysed at <b>{cfg["sampling"]["fps"]:g} frames per second</b></span></div>')
+                f'<span><b>{"4K" if info.width >= 3800 else f"{info.height}p"}</b></span>'
+                f'<span>Site <b>{T.esc(video.stem.split(" ")[0])}</b></span></div>')
 
     if len(vids) > 1:
         batch_section(cfg, vids)
 
     # ------------------------------------------------------------------ enhancement preview
     with st.container(border=True):
-        T.section("Check the water clarity", "2", "optional")
-        st.caption("Pick a moment in the video. BlueSight corrects the green cast and boosts local contrast before looking "
-                   "for fish, and scores visibility from 0 (opaque) to 1 (clear).")
+        T.section("Water clarity", "2", "optional")
         vmin = float(cfg["identify"]["V_MIN"])
-        t = st.slider("Preview moment (seconds into the video)", 0.0, float(max(1.0, info.duration_s - 1)),
+        t = st.slider("Moment in the video (seconds)", 0.0, float(max(1.0, info.duration_s - 1)),
                       float(min(420.0, info.duration_s / 3)), 1.0, key="preview_t",
-                      help="Try 420 (7:00, very hazy) and 1297 (21:37, a green crab beside the pole).")
+                      help="Try 420 (very hazy) and 1297 (a green crab by the pole).")
         small, enh, v = preview_frame(str(video), float(t), json.dumps(cfg["enhance"], sort_keys=True))
         if small is None:
             st.error("Couldn't read a frame at that moment. Try a slightly earlier time.")
         else:
             left, right = st.columns([3, 2], gap="large")
             with left:
-                before_after(small, enh, "Original", "Enhanced")
+                before_after(small, enh, "Original", "Cleaned up")
             with right:
-                _, tone, _ = T.visibility_word(v, vmin)
+                word, tone, _ = T.visibility_word(v, vmin)
                 fill = {"ok": "var(--ok-fg)", "warn": "var(--warn-fg)"}.get(tone, "var(--mute-fg)")
-                st.html(f'<div class="bs-readout"><p class="lbl">Visibility at {C.fmt_t(t)}</p>'
-                        f'<div class="num">{v:.2f}<span> / 1</span></div></div>'
-                        f'<div class="bs-meter" role="img" aria-label="visibility {v:.2f} of 1, threshold {vmin:.2f}">'
+                st.html(f'<div class="bs-readout"><p class="lbl">Water at {C.fmt_t(t)}</p>'
+                        f'<div class="num">{word}</div></div>'
+                        f'<div class="bs-meter" role="img" aria-label="water clarity {v:.2f} of 1">'
                         f'<div class="fill" style="width:{min(1.0, v) * 100:.0f}%;background:{fill}"></div>'
-                        f'<div class="mark" style="left:{vmin * 100:.0f}%" title="identification threshold {vmin:.2f}"></div></div>')
-                if v < vmin:
-                    st.html(T.visibility_badge(v, vmin) +
-                            f'<p style="margin-top:10px">Below the identification threshold ({vmin:.2f}). Fish seen here are '
-                            '<b>counted as "Unable to ID due to visibility"</b> and are <b>never flagged as a new species</b>.</p>')
-                else:
-                    st.html(T.visibility_badge(v, vmin) +
-                            f'<p style="margin-top:10px">Clear enough to identify species (threshold {vmin:.2f}).</p>')
+                        f'<div class="mark" style="left:{vmin * 100:.0f}%" title="below this mark: too murky to name species"></div></div>'
+                        + ('<p class="bs-small">Fish here are counted as “too murky to name”, never as a new species.</p>'
+                           if v < vmin else '<p class="bs-small">Clear enough to name species.</p>'))
 
     # ------------------------------------------------------------------ run
     with st.container(border=True):
-        T.section("Run the analysis", "3")
+        T.section("Analyze", "3")
         p = cfg["protocol"]
-        mode = st.radio("Which part of the video?",
-                        ["Protocol window", "Custom window", "Whole video"], horizontal=True, key="window_mode",
-                        captions=[f"Skip the first {p['trim_start_s'] // 60:.0f} min, analyse {p['analysis_duration_s'] // 60:.0f} min",
-                                  "Choose a start and length", "Everything except the first and last minute"])
+        mode = st.segmented_control("How much of the video?", ["Protocol window", "Custom window", "Whole video"],
+                                    default="Protocol window", key="window_mode",
+                                    format_func={"Protocol window": "Standard 15 min", "Custom window": "Pick a part",
+                                                 "Whole video": "Whole video"}.get,
+                                    help=f"Standard: skip the first {p['trim_start_s'] // 60:.0f} min (settling sediment), "
+                                         f"then {p['analysis_duration_s'] // 60:.0f} min, as in the protocol.") or "Protocol window"
         start, dur = None, None
         if mode == "Custom window":
             c1, c2 = st.columns(2)
             start = c1.number_input("Start (seconds)", 0.0, float(info.duration_s), 1280.0, 5.0, key="win_start")
             dur = c2.number_input("Length (seconds)", 10.0, float(info.duration_s), 75.0, 5.0, key="win_dur")
-            st.caption(f"Analyses {C.fmt_t(start)} to {C.fmt_t(min(info.duration_s, start + dur))}.")
+            st.caption(f"{C.fmt_t(start)} to {C.fmt_t(min(info.duration_s, start + dur))}")
         elif mode == "Whole video":
             start, dur = float(p["trim_start_s"]), float(info.duration_s)
         with st.expander("Advanced"):
-            force = st.checkbox("Re-detect from scratch (ignore saved detections)", value=False,
-                                help="Normally detections are reused, so re-running after a review takes seconds. "
-                                     "Re-detecting a 15-minute window takes about 15–20 minutes on an Apple M5.")
+            force = st.checkbox("Start fresh (ignore saved work)", value=False,
+                                help="Normally saved work is reused, so a re-run takes seconds. Fresh: about 10 minutes "
+                                     "per 15 minutes of video on a laptop.")
         steps = st.empty()
         steps.html(T.stepper())
         b_col, n_col = st.columns([1, 3], vertical_alignment="center")
@@ -162,8 +150,7 @@ def page() -> None:
                 rep = run_video(video, cfg, start, dur, cb, force)
             except Exception as exc:  # shown to the user and logged
                 log.exception("analysis failed")
-                status.error(f"The analysis stopped: {exc}. Nothing was saved for this window. Details are in "
-                             "outputs/logs/bluesight.log.")
+                status.error(f"Something went wrong: {exc}. Nothing was saved. Details: outputs/logs/bluesight.log")
                 return
             steps.html(T.stepper((), range(5)))
             status.empty()
@@ -179,8 +166,7 @@ def page() -> None:
 def batch_section(cfg: dict, vids: list[Path]) -> None:
     """Analyse several videos one after another with the protocol window (e.g. a whole survey day)."""
     with st.expander(f"Analyze several videos at once ({len(vids)} available)", icon=":material/video_library:"):
-        st.caption("Each video gets the protocol window (skip 1 min, analyse 15 min). Leave the computer running; about "
-                   "15–20 minutes per video on a laptop GPU, faster on a desktop GPU.")
+        st.caption("Standard 15 minutes each. About 10 minutes per video on a laptop.")
         pick = st.multiselect("Videos", [str(v) for v in vids], format_func=lambda p: Path(p).name, key="batch_pick")
         if st.button("Analyze selected videos", disabled=not pick, icon=":material/playlist_play:", key="batch_go"):
             from bluesight.pipeline import run_video
@@ -192,35 +178,29 @@ def batch_section(cfg: dict, vids: list[Path]) -> None:
                     bar.progress(min(1.0, (i + f) / len(pick)), text=f"{Path(v).name} ({i + 1}/{len(pick)}): {m}")
                 try:
                     rep = run_video(v, cfg, None, None, cb)
-                    done.append({"Video": Path(v).name, "MeanCount": rep["MeanCount_total_fish"],
-                                 "Review items": rep["review_items"], "Runtime (s)": rep["runtime_s"], "Status": "done"})
+                    done.append({"Video": Path(v).name, "Fish per check (avg)": rep["MeanCount_total_fish"],
+                                 "New animals": rep["review_items"], "Time (s)": rep["runtime_s"], "Status": "done"})
                 except Exception as exc:  # keep going with the next video
                     log.exception("batch: %s failed", v)
                     done.append({"Video": Path(v).name, "Status": f"failed: {exc}"})
             bar.progress(1.0, text="All done")
             st.dataframe(done, hide_index=True, width="stretch")
-            st.success("Finished. Open Results to see each video, or Count check to verify the counts.")
+            st.success("All done. Check the counts next.")
 
 
 def show_summary(rep: dict, secs: float | None) -> None:
     net = rep.get("network") or {}
     ext = net.get("external_connection_attempts")
-    en = rep.get("energy") or {}
     took = f"{secs:.0f} s" if secs is not None else f"{rep['runtime_s']:.0f} s"
-    msg = (f"**Finished in {took}** on this computer ({rep['ran_on']}). "
-           + ("Saved detections were reused, so only identification and counting were repeated. " if rep["cached_detection"] else
-              f"Processing cost {rep['full_processing_s_per_video_min']} s per minute of video. ")
-           + (f"External network connections during the run: **{ext}**. " if ext is not None else "")
-           + (f"Estimated energy: {en['energy_wh']:.2f} Wh." if en.get("energy_wh") is not None else ""))
-    st.success(msg)
+    st.success(f"Done in {took}" + (f" · {ext} internet connections" if ext is not None else "") + " · nothing left this computer",
+               icon=":material/check_circle:")
     pend = rep.get("review_items_packaged", rep.get("review_items", 0))
-    T.cards([
-        {"k": "Fish counted", "v": f"{rep['MeanCount_total_fish']:.1f}", "d": "MeanCount: mean fish per 60-s subsample", "tone": "info"},
-        {"k": "Items for you to review", "v": pend, "d": "unfamiliar or uncertain", "tone": "attn" if pend else "ok"},
-        {"k": "Footage too murky", "v": f"{100 * rep['visibility']['fraction_below_v_min']:.0f}", "unit": "%",
-         "d": "of sampled frames below the visibility threshold"},
+    T.stats([
+        {"k": "fish per check point (average)", "v": f"{rep['MeanCount_total_fish']:.1f}", "tip": "Protocol MeanCount"},
+        {"k": "new animals to look at", "v": pend, "tone": "attn" if pend else "ok"},
+        {"k": "of the video too murky", "v": f"{100 * rep['visibility']['fraction_below_v_min']:.0f}", "unit": "%"},
     ])
     c1, c2, c3 = st.columns(3)
-    c1.page_link(C.PAGES["check"], label="Check the counts", icon=":material/rule:")
-    c2.page_link(C.PAGES["review"], label="Open the review queue", icon=":material/fact_check:")
-    c3.page_link(C.PAGES["results"], label="See full results", icon=":material/bar_chart:")
+    c1.page_link(C.PAGES["check"], label="Next: check the counts", icon=":material/arrow_forward:")
+    c2.page_link(C.PAGES["review"], label="New animals", icon=":material/pets:")
+    c3.page_link(C.PAGES["results"], label="Report", icon=":material/bar_chart:")

@@ -29,17 +29,17 @@ C.base_config()
 
 pending = C.pending_count()
 pages = {
-    "guide": st.Page(page_guide.page, title="How it works", icon=":material/help:", url_path="guide"),
+    "guide": st.Page(page_guide.page, title="Help", icon=":material/help:", url_path="guide"),
     "analyze": st.Page(page_analyze.page, title="Analyze", icon=":material/play_circle:", url_path="analyze", default=True),
-    "check": st.Page(page_check.page, title="Count check", icon=":material/rule:", url_path="check"),
-    "results": st.Page(page_results.page, title="Results", icon=":material/bar_chart:", url_path="results"),
-    "review": st.Page(page_review.page, title=f"Review queue ({pending})" if pending else "Review queue",
-                      icon=":material/fact_check:", url_path="review"),
-    "registry": st.Page(page_registry.page, title="Species registry", icon=":material/collections_bookmark:", url_path="registry"),
-    "privacy": st.Page(page_privacy.page, title="Model & privacy", icon=":material/verified_user:", url_path="privacy"),
+    "check": st.Page(page_check.page, title="Check counts", icon=":material/rule:", url_path="check"),
+    "results": st.Page(page_results.page, title="Report", icon=":material/bar_chart:", url_path="results"),
+    "review": st.Page(page_review.page, title=f"New animals ({pending})" if pending else "New animals",
+                      icon=":material/pets:", url_path="review"),
+    "registry": st.Page(page_registry.page, title="Species", icon=":material/collections_bookmark:", url_path="registry"),
+    "privacy": st.Page(page_privacy.page, title="Privacy", icon=":material/verified_user:", url_path="privacy"),
 }
 C.PAGES.update(pages)
 nav = st.navigation({"Survey": [pages["analyze"], pages["check"], pages["review"], pages["results"]],
-                     "Reference": [pages["registry"], pages["privacy"], pages["guide"]]})
+                     "Library": [pages["registry"], pages["privacy"], pages["guide"]]})
 C.sidebar()
 nav.run()

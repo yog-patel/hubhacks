@@ -38,7 +38,8 @@ def hardware() -> str:
 
 
 def source() -> str:
-    return st.session_state.get("data_source", "Survey results")
+    """Real outputs, or the mock dataset when the app is opened with ?mock=1 (UI work without models)."""
+    return "Mock data" if st.query_params.get("mock") == "1" else "Survey results"
 
 
 def cfg() -> dict:
@@ -115,9 +116,9 @@ def local_badge(compact: bool = False) -> str:
     dev = {"mps": "Apple GPU", "cuda": "NVIDIA GPU", "cpu": "CPU"}.get(device_name(), device_name())
     block = " block" if compact else ""
     if offline_mode():
-        tail = "" if compact else " · offline · video never leaves this computer"
+        tail = "" if compact else " · video stays on this computer"
         return (f'<div class="bs-local{block}" role="status"><span class="dot" aria-hidden="true"></span>'
-                f'<span><b>Running locally on {theme.esc(dev)}</b>{tail}</span></div>')
+                f'<span><b>Offline</b> · {theme.esc(dev)}{tail}</span></div>')
     return (f'<div class="bs-local warn{block}" role="status"><span class="dot" aria-hidden="true"></span><span><b>Running on '
             f'{theme.esc(dev)}</b> · offline mode is off, so models could contact Hugging Face. See Model &amp; privacy.</span></div>')
 
@@ -128,14 +129,9 @@ def sidebar() -> None:
     if "reviewer" not in st.session_state:
         st.session_state["reviewer"] = qp.get("reviewer", "")
     with st.sidebar:
-        st.text_input("Reviewer", key="reviewer", placeholder="Your name",
-                      help="Saved with every decision you make in the review queue.")
-        st.radio("Data", ["Survey results", "Mock data"], key="data_source", horizontal=True,
-                 help="Mock data is a small fake dataset for trying the app without running the models "
-                      "(create it with scripts/make_mock_data.py).")
+        st.text_input("Your name", key="reviewer", placeholder="Needed to save checks",
+                      help="Saved with every count you check and every animal you name.")
         st.html(local_badge(compact=True))
-        st.html('<p class="bs-side-foot">Light or dark: <b>⋮ menu → Settings</b> (top right). '
-                'Follows your computer by default.</p>')
 
 
 @st.cache_resource(show_spinner="Preparing the field guide (first time only)…")

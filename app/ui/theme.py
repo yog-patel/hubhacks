@@ -25,12 +25,12 @@ import streamlit as st
 
 STATUS = {
     # key: (label, icon, tone, plain-language explanation)
-    "known": ("Known species", "✓", "ok", "Matches a species in the registry; counted automatically."),
-    "uncertain": ("Uncertain", "?", "warn", "Looks like a registry species, but not closely enough to count without you."),
-    "unfamiliar": ("Unfamiliar", "!", "bad", "Does not match any species in the registry. Possibly new to the registry."),
-    "unidentified_low_visibility": ("Low visibility", "◐", "muted",
-                                    "Too murky, too small or too brief to identify. Never flagged as a new species."),
-    "rejected": ("Rejected", "✕", "muted", "A reviewer marked this as not a fish."),
+    "known": ("Identified", "✓", "ok", "Matches a species in the library; counted automatically."),
+    "uncertain": ("Not sure", "?", "warn", "Looks like a known species, but not closely enough to count without you."),
+    "unfamiliar": ("New to BlueSight", "!", "bad", "Doesn't look like anything in the species library."),
+    "unidentified_low_visibility": ("Too murky", "◐", "muted",
+                                    "Too murky, small or brief to name. Never treated as a new species."),
+    "rejected": ("Not an animal", "✕", "muted", "A reviewer marked this as not a fish."),
 }
 
 CSS = """
@@ -120,7 +120,7 @@ button kbd[aria-label^="Shortcut"]{ opacity:1 !important; font-weight:700; borde
 .bs-eyebrow .dots{ display:inline-flex; gap:4px; }
 .bs-eyebrow .dots i{ width:18px; height:4px; border-radius:2px; background:var(--border); display:block; }
 .bs-eyebrow .dots i.on{ background:var(--primary-ink); }
-.bs-lede{ font-size:17px; line-height:1.6; color:var(--ink-2); margin:var(--s2) 0 var(--s5); max-width:68ch; }
+.bs-lede{ font-size:17px; line-height:1.5; color:var(--ink-2); margin:var(--s1) 0 var(--s5); max-width:60ch; }
 
 /* ---------- badges / pills ---------- */
 .bs-badge{ display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:13.5px;
@@ -148,7 +148,7 @@ button kbd[aria-label^="Shortcut"]{ opacity:1 !important; font-weight:700; borde
 .bs-card .k{ display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-2); font-weight:600; margin-bottom:6px; }
 .bs-card .k .pip{ width:8px; height:8px; border-radius:50%; background:var(--border-strong); flex:none; }
 .bs-card.ok .pip{ background:var(--ok-fg); } .bs-card.attn .pip{ background:var(--warn-fg); } .bs-card.info .pip{ background:var(--primary-ink); }
-.bs-card .v{ font-size:34px; font-weight:650; color:var(--ink); line-height:1.1; font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+.bs-card .v{ font-size:40px; font-weight:650; color:var(--ink); line-height:1.1; font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
 .bs-card .v small{ font-size:16px; font-weight:600; color:var(--ink-2); margin-left:3px; }
 .bs-card .d{ font-size:13.5px; color:var(--muted); margin-top:6px; line-height:1.45; }
 
@@ -220,6 +220,39 @@ button kbd[aria-label^="Shortcut"]{ opacity:1 !important; font-weight:700; borde
 .bs-next-meta{ font-size:13.5px; color:var(--muted); margin:6px 0 0; line-height:1.45; }
 .bs-next-meta b{ color:var(--ink); font-size:15px; font-variant-numeric:tabular-nums; }
 
+/* stat row (big number + short label, no box) */
+.bs-stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:var(--s4); margin:var(--s2) 0 var(--s5);
+  border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:var(--s4) 0; }
+.bs-stat .n{ font-size:44px; font-weight:650; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+.bs-stat .n small{ font-size:18px; color:var(--ink-2); font-weight:600; margin-left:2px; }
+.bs-stat .l{ font-size:14px; color:var(--muted); margin-top:6px; }
+.bs-stat.attn .n{ color:var(--warn-fg); } .bs-stat.ok .n{ color:var(--ok-fg); }
+
+/* check-point strip (15 one-minute check points) */
+.bs-strip{ display:grid; grid-template-columns:repeat(var(--n),1fr); gap:4px; margin:var(--s2) 0 var(--s1); }
+.bs-strip i{ height:30px; border-radius:6px; background:var(--tint); border:1px solid var(--border); display:flex;
+  align-items:center; justify-content:center; font:600 12px/1 var(--sans); color:var(--muted); font-style:normal; }
+.bs-strip i.done{ background:var(--ok-bg); border-color:var(--ok-bd); color:var(--ok-fg); }
+.bs-strip i.flag{ border-color:var(--warn-fg); border-width:2px; color:var(--warn-fg); }
+.bs-strip i.cur{ outline:3px solid var(--primary-ink); outline-offset:1px; color:var(--ink); }
+.bs-strip-key{ font-size:13px; color:var(--muted); margin:0 0 var(--s4); }
+
+/* checklist (privacy) */
+.bs-checks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:var(--s3); margin:var(--s3) 0 var(--s5); }
+.bs-check{ display:flex; gap:12px; align-items:flex-start; padding:var(--s4); border:1px solid var(--border); border-radius:var(--r-card);
+  background:var(--card); }
+.bs-check .ico{ width:28px; height:28px; border-radius:50%; background:var(--ok-bg); color:var(--ok-fg); border:1px solid var(--ok-bd);
+  display:flex; align-items:center; justify-content:center; font-weight:800; flex:none; }
+.bs-check b{ display:block; font-size:16px; color:var(--ink); } .bs-check span{ font-size:14px; color:var(--muted); }
+
+/* how-it-works steps */
+.bs-flow{ display:grid; grid-template-columns:repeat(4,1fr); gap:var(--s3); margin:var(--s3) 0 var(--s5); }
+.bs-flow > div{ border-top:3px solid var(--primary-ink); padding-top:var(--s3); }
+.bs-flow .n{ font:700 13px/1 var(--mono); color:var(--primary-ink); }
+.bs-flow b{ display:block; font-family:var(--serif); font-size:22px; margin:6px 0 4px; color:var(--ink); }
+.bs-flow span{ font-size:15px; color:var(--ink-2); line-height:1.45; }
+@media (max-width:720px){ .bs-flow{ grid-template-columns:1fr 1fr; } }
+
 /* privacy verdict */
 .bs-verdict{ display:flex; gap:16px; align-items:center; padding:18px 22px; border-radius:var(--r-card); border:1px solid; margin-bottom:8px; }
 .bs-verdict .ico{ font-size:24px; font-weight:800; width:46px; height:46px; border-radius:50%; display:flex; align-items:center;
@@ -256,12 +289,10 @@ def esc(s: object) -> str:
 
 
 def header(eyebrow: str, title: str, lede: str | None = None, step: int | None = None) -> None:
-    """Page header: eyebrow (with step dots for the 3-step survey flow), serif H1, one-sentence lede."""
-    dots = ""
+    """Page header: a small step marker (survey pages only), the title and at most one short line."""
     if step:
-        dots = '<span class="dots" aria-hidden="true">' + "".join(
-            f'<i class="{"on" if i <= step else ""}"></i>' for i in range(1, 4)) + "</span>"
-    st.html(f'<p class="bs-eyebrow">{dots}<span>{esc(eyebrow)}</span></p>')
+        dots = "".join(f'<i class="{"on" if i <= step else ""}"></i>' for i in range(1, 5))
+        st.html(f'<p class="bs-eyebrow"><span class="dots" aria-hidden="true">{dots}</span><span>Step {step} of 4</span></p>')
     st.title(title, anchor=False)
     if lede:
         st.html(f'<p class="bs-lede">{lede}</p>')
@@ -288,18 +319,19 @@ def plain_badge(text: str, tone: str = "info", icon: str = "") -> str:
 
 
 def visibility_word(v: float, v_min: float) -> tuple[str, str, str]:
-    """(word, tone, icon) for a visibility score."""
+    """(word, tone, icon) for a water-clarity score."""
     if v < v_min:
-        return "too murky", "muted", "◐"
+        return "Too murky", "muted", "◐"
     if v < v_min + 0.15:
-        return "fair", "warn", "◑"
-    return "good", "ok", "●"
+        return "Hazy", "warn", "◑"
+    return "Clear", "ok", "●"
 
 
 def visibility_badge(v: float, v_min: float) -> str:
-    """Visibility score with a word label, so it does not rely on colour."""
+    """Water clarity as a word (the 0-1 score is in the tooltip), so it does not rely on colour."""
     word, tone, ico = visibility_word(v, v_min)
-    return plain_badge(f"Visibility {v:.2f} · {word}", tone, ico)
+    return (f'<span class="bs-badge t-{tone}" title="Water clarity {v:.2f} of 1">'
+            f'<span class="ico" aria-hidden="true">{ico}</span>{esc(word)} water</span>')
 
 
 def cards(items: Iterable[dict]) -> None:
@@ -316,24 +348,23 @@ def cards(items: Iterable[dict]) -> None:
 def similarity_bars(top3: list[dict], t_known: float, t_unknown: float) -> str:
     """Top-3 matches as labelled bars with the two thresholds marked (value shown as text, too)."""
     if not top3:
-        return '<p class="bs-small">The registry is empty, so there is nothing to compare against.</p>'
+        return '<p class="bs-small">The species library is empty.</p>'
     rows = []
     for m in top3:
         s = max(0.0, min(1.0, float(m["similarity"])))
-        verdict = "close match" if s >= t_known else ("partial match" if s >= t_unknown else "no match")
+        verdict = "strong match" if s >= t_known else ("weak match" if s >= t_unknown else "no match")
         rows.append(
             f'<div class="bs-sim"><div class="row"><span>{esc(m["species"].replace("_", " ").capitalize())}</span>'
-            f'<span><b>{s:.2f}</b> <span class="vd">· {verdict}</span></span></div>'
+            f'<span class="vd">{verdict}</span></div>'
             f'<div class="track" role="img" aria-label="similarity {s:.2f} of 1">'
             f'<div class="fill" style="width:{s * 100:.1f}%"></div>'
             f'<div class="tick" style="left:{t_unknown * 100:.1f}%" title="T_UNKNOWN {t_unknown}"></div>'
             f'<div class="tick" style="left:{t_known * 100:.1f}%" title="T_KNOWN {t_known}"></div></div></div>')
-    rows.append(f'<p class="bs-sim-legend">Tick marks: {t_unknown:.2f} partial match · {t_known:.2f} counted automatically.</p>')
+    rows.append('<p class="bs-sim-legend">Right of the second tick = counted automatically.</p>')
     return "".join(rows)
 
 
-STEPS = [("Enhance", "colour + contrast"), ("Detect", "find moving animals"), ("Track", "one ID per fish"),
-         ("Identify", "compare with registry"), ("Count", "MeanCount, MaxN")]
+STEPS = [("Clean image", ""), ("Find fish", ""), ("Follow each fish", ""), ("Name species", ""), ("Count", "")]
 
 
 def stepper(active: Iterable[int] = (), done: Iterable[int] = ()) -> str:
@@ -345,7 +376,7 @@ def stepper(active: Iterable[int] = (), done: Iterable[int] = ()) -> str:
         state = "finished" if i in done else ("in progress" if i in active else "waiting")
         n = "✓" if i in done else str(i + 1)
         li.append(f'<li class="{cls}" aria-label="{name}: {state}"><span class="n" aria-hidden="true">{n}</span>'
-                  f'<span class="t">{name}<span class="s">{sub}</span></span></li>')
+                  f'<span class="t">{name}</span></li>')
     return '<ol class="bs-steps">' + "".join(li) + "</ol>"
 
 
@@ -353,6 +384,17 @@ def empty_state(title: str, body: str, hint: str | None = None) -> None:
     """What this is + why it's empty + how to start."""
     h = f'<p class="bs-small">{hint}</p>' if hint else ""
     st.html(f'<div class="bs-empty"><h4>{esc(title)}</h4><p>{body}</p>{h}</div>')
+
+
+def stats(items: Iterable[dict]) -> None:
+    """A row of big numbers with short labels (k = label, v = value, optional unit and tone ok/attn)."""
+    out = []
+    for c in items:
+        unit = f"<small>{esc(c['unit'])}</small>" if c.get("unit") else ""
+        tip = f' title="{esc(c["tip"])}"' if c.get("tip") else ""
+        out.append(f'<div class="bs-stat {c.get("tone", "")}"{tip}><div class="n">{esc(c["v"])}{unit}</div>'
+                   f'<div class="l">{esc(c["k"])}</div></div>')
+    st.html('<div class="bs-stats">' + "".join(out) + "</div>")
 
 
 def kbd(k: str) -> str:

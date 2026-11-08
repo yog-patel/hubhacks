@@ -17,7 +17,7 @@ from bluesight.io_video import read_frame_at, resize_width
 from . import common as C
 from . import theme as T
 
-MODES = {"assisted": "Check the AI's marks", "blind": "Blind count (quality control)"}
+MODES = {"assisted": "Fix the AI's marks", "blind": "Count without hints"}
 
 
 def _video_path(cfg: dict, rep: dict) -> Path:
@@ -46,20 +46,20 @@ def frame_image(cfg: dict, rep: dict, t: float, width: int = 1280) -> np.ndarray
 def kind(label: str, invert: set[str]) -> str:
     """Plain-language category of an AI mark."""
     if label in invert:
-        return "Invertebrate"
+        return "Crab or shrimp"
     if label.startswith("Unknown"):
-        return "Too murky to identify"
+        return "Too murky"
     if label.startswith("Unconfirmed"):
-        return "Probably a fish (unconfirmed)"
+        return "Maybe a fish"
     if label.startswith("Unfamiliar"):
-        return "Unfamiliar"
-    return "Identified fish"
+        return "New animal"
+    return "Fish"
 
 
-KIND_COLOURS = {"Identified fish": (0, 210, 255), "Probably a fish (unconfirmed)": (0, 140, 255),
-                "Too murky to identify": (230, 200, 120), "Unfamiliar": (60, 60, 255), "Invertebrate": (200, 80, 200)}
-KIND_SWATCH = {"Identified fish": "#ffd200", "Probably a fish (unconfirmed)": "#ff8c00", "Too murky to identify": "#78c8e6",
-               "Unfamiliar": "#ff3c3c", "Invertebrate": "#c850c8"}
+KIND_COLOURS = {"Fish": (0, 210, 255), "Maybe a fish": (0, 140, 255),
+                "Too murky": (230, 200, 120), "New animal": (60, 60, 255), "Crab or shrimp": (200, 80, 200)}
+KIND_SWATCH = {"Fish": "#ffd200", "Maybe a fish": "#ff8c00", "Too murky": "#78c8e6",
+               "New animal": "#ff3c3c", "Crab or shrimp": "#c850c8"}
 
 
 def draw_marks(img: np.ndarray, marks: list[dict], removed: set[int], scale: float, invert: set[str]) -> np.ndarray:
@@ -108,58 +108,54 @@ def page() -> None:
     cfg = C.cfg()
     db = C.db()
     CC.ensure(db)
-    T.header("Quality control", "Count check",
-             "Check the AI's count on each 60-second subsample, the same frames the protocol asks you to count. "
-             "Remove marks that aren't fish and add any it missed: a few clicks instead of a full manual count. "
-             "Your corrections replace the AI's numbers in the report and are saved as training data.")
+    T.header("", "Check the counts", "One frame per minute, like the protocol. Fix what the AI got wrong.", step=2)
     runs = C.list_runs()
     if not runs:
-        T.empty_state("Nothing to check yet", "Subsample frames appear here after you analyse a video.",
-                      "Go to <b>Analyze</b> and run a video first.")
+        T.empty_state("Nothing to check yet", "Analyze a video first.")
         return
     labels = [C.run_label(r) for r in runs]
     default = next((i for i, r in enumerate(runs) if r["run_id"] == st.session_state.get("last_run")), 0)
-    idx = st.selectbox("Analysis", range(len(runs)), index=default, format_func=lambda i: labels[i], key="check_run")
+    idx = st.selectbox("Video", range(len(runs)), index=default, format_func=lambda i: labels[i], key="check_run",
+                       label_visibility="collapsed")
     rep = C.load_report(runs[idx])
     st.session_state["last_run"] = rep["run_id"]
     subs = rep.get("subsamples", [])
     if not subs:
-        st.info("This analysis has no subsamples.")
+        st.info("No check points in this analysis.")
         return
     rows = CC.checks(db, rep["run_id"])
     s = CC.summary(rep, rows)
     agree = s["blind_agreement_pct"]
-    T.cards([
-        {"k": "Subsamples checked", "v": f"{s['n_checked']} of {s['n_subsamples']}", "tone": "ok" if s["n_checked"] == s["n_subsamples"] else "attn",
-         "d": "checked by a person (the rest keep the AI's count)"},
-        {"k": "MeanCount", "v": f"{s['MeanCount_checked']:.1f}", "tone": "info",
-         "d": f"with your checks · AI alone {s['MeanCount_ai']:.1f}"},
-        {"k": "Blind-count agreement", "v": "—" if agree is None else f"{agree:.0f}", "unit": "" if agree is None else "%",
-         "tone": "info" if agree is None else ("ok" if agree >= CC.AGREEMENT_TARGET else "attn"),
-         "d": "protocol target 95% · do a few blind counts to measure it" if agree is None
-              else f"over {s['n_blind']} frames · {s['blind_frames_within_6pct']} within 6% · target 95%"},
-        {"k": "Corrections so far", "v": s["marks_removed"] + s["fish_added"], "tone": "info",
-         "d": f"{s['marks_removed']} wrong marks removed · {s['fish_added']} missed fish added"},
+    T.stats([
+        {"k": f"of {s['n_subsamples']} check points done", "v": s["n_checked"],
+         "tone": "ok" if s["n_checked"] == s["n_subsamples"] else ""},
+        {"k": "fish per check point" + (", with your checks" if s["n_checked"] else ", AI only"), "v": f"{s['MeanCount_checked']:.1f}",
+         "tip": f"Protocol MeanCount. AI alone: {s['MeanCount_ai']:.1f}"},
+        {"k": "agreement in no-hint counts (target 95%)", "v": "–" if agree is None else f"{agree:.0f}",
+         "unit": "" if agree is None else "%", "tone": "" if agree is None else ("ok" if agree >= CC.AGREEMENT_TARGET else "attn")},
     ])
 
     done = {(round(r["subsample_t_s"], 3), r["mode"]) for r in rows}
-    mode = st.radio("How do you want to count?", list(MODES), format_func=MODES.get, horizontal=True, key="check_mode",
-                    captions=["Fast: the AI's marks are shown, you fix them", "The AI's marks are hidden; compare afterwards"])
+    mode = st.segmented_control("Mode", list(MODES), format_func=MODES.get, default="assisted", key="check_mode",
+                                label_visibility="collapsed") or "assisted"
     opts = list(range(len(subs)))
 
     def fmt(i: int) -> str:
         tick = "✓ " if (round(subs[i]["subsample_t_s"], 3), mode) in done else ""
-        flag = " · ⚑ check first: the two AI estimates disagree" if subs[i].get("estimates_disagree") else ""
-        return f"{tick}Subsample {i + 1} · {subs[i]['time']}{flag}"
-    n_dis = sum(1 for x in subs if x.get("estimates_disagree"))
-    if n_dis:
-        st.caption(f"⚑ {n_dis} of {len(subs)} subsamples are marked *check first*: the motion detector and the trained "
-                   "counting model disagree there, so a person's count matters most.")
+        flag = "  ⚑ check first" if subs[i].get("estimates_disagree") else ""
+        return f"{tick}Check point {i + 1} · {subs[i]['time']}{flag}"
     order = sorted(opts, key=lambda i: (not subs[i].get("estimates_disagree"), i))
     first_open = next((i for i in order if (round(subs[i]["subsample_t_s"], 3), mode) not in done), 0)
     cur = st.session_state.get("check_cursor", first_open)
     cur = min(max(0, int(cur)), len(subs) - 1)
-    pick = st.selectbox("Subsample", opts, index=cur, format_func=fmt, key=f"check_pick_{mode}_{rep['run_id']}_{cur}")
+    pick = st.selectbox("Check point", opts, index=cur, format_func=fmt, key=f"check_pick_{mode}_{rep['run_id']}_{cur}",
+                        label_visibility="collapsed")
+    tiles = "".join(
+        f'<i class="{" ".join(c for c in ("done" if (round(x["subsample_t_s"], 3), mode) in done else "", "flag" if x.get("estimates_disagree") else "", "cur" if i == pick else "") if c)}" '
+        f'title="{x["time"]}">{i + 1}</i>' for i, x in enumerate(subs))
+    if len(subs) > 1:
+        st.html(f'<div class="bs-strip" style="--n:{len(subs)}" role="img" aria-label="check point progress">{tiles}</div>'
+                '<p class="bs-strip-key">Green = done · orange outline = the two AI counts disagree, check these first</p>')
     sub = subs[pick]
     dets = db.q("SELECT t_s, label FROM detections WHERE run_id=? AND abs(t_s-?)<=0.6", (rep["run_id"], sub["subsample_t_s"]))
     ft = CC.frame_time_for(sub, dets, float(cfg["protocol"]["count_window_s"]))
@@ -174,47 +170,46 @@ def page() -> None:
     img = frame_image(cfg, rep, ft)
     dmap = density_map(rep, ft)
     scale = (img.shape[1] / float(rep.get("process_width", cfg["sampling"]["process_width"]))) if img is not None else 1.0
-    title = "Fix the AI’s marks" if mode == "assisted" else "Count the fish you can see"
+    title = f"Check point {pick + 1} of {len(subs)}"
     with st.container(border=True, key="check_card"):
         h1, h2 = st.columns([4, 1], vertical_alignment="center")
         h1.html(f'<div class="bs-item-head">{T.visibility_badge(float(sub.get("visibility", 0)), float(cfg["identify"]["V_MIN"]))}'
-                f'<span class="bs-small">Subsample {pick + 1} of {len(subs)}</span></div>'
+                + (T.plain_badge("Check first", "warn", "⚑") if sub.get("estimates_disagree") else "") + '</div>'
                 f'<p class="bs-item-title">{title}</p>')
         h2.html(f'<p class="bs-when"><b>{C.fmt_t(ft)}</b>{T.esc(rep["video_file"])}</p>')
-        left, right = st.columns([3, 1], gap="large")
+        left, right = st.columns([5, 2], gap="large")
         with right:
             if mode == "assisted":
                 rm_default = [] if prev is None else json.loads(prev["removed"] or "[]")
                 kinds: dict[str, list[int]] = {}
                 for m in marks:
                     kinds.setdefault(kind(m["label"], invert), []).append(m["mark"])
-                drop = st.multiselect("Remove a whole category", list(kinds), key=f"kd_{key}",
-                                      format_func=lambda k: f"{k} ({len(kinds[k])})", placeholder="e.g. too murky",
-                                      help="Quick way to clear many wrong marks at once, e.g. on sand.")
+                st.html('<p class="bs-choice" style="margin:0 0 4px">Remove a whole group</p>')
+                drop = [k for k in kinds if st.checkbox(f"{k} · {len(kinds[k])}", key=f"kd_{key}_{k}",
+                                                        help="Untick to bring them back")]
                 rm_default = sorted(set(rm_default) | {i for k in drop for i in kinds[k]})
-                removed = st.multiselect("Marks that are NOT fish", [m["mark"] for m in marks], default=rm_default,
-                                         key=f"rm_{key}_{'_'.join(sorted(drop))}", placeholder="Pick mark numbers to remove",
-                                         help="Sand, the pole, a shadow, a bubble, or the same fish counted twice.")
-                missed = st.number_input("Fish the AI missed", 0, 500, int(prev["missed_fish"]) if prev else 0, 1, key=f"ms_{key}",
-                                         help="Only fish you can confirm with two cues: shape, fins/eye, colour flash or swimming.")
+                removed = st.multiselect("Remove by number", [m["mark"] for m in marks], default=rm_default,
+                                         key=f"rm_{key}_{'_'.join(sorted(drop))}", placeholder="Box numbers that aren't fish",
+                                         help="Sand, the pole, a shadow, a bubble, or the same fish twice.")
+                missed = st.number_input("Fish it missed", 0, 500, int(prev["missed_fish"]) if prev else 0, 1, key=f"ms_{key}",
+                                         help="Only fish you're sure of: shape, fins, a flash of colour or swimming.")
                 kept_fish = sum(1 for m in marks if m["label"] not in invert and m["mark"] not in set(removed))
                 kept_inv = sum(1 for m in marks if m["label"] in invert and m["mark"] not in set(removed))
-                inv = st.number_input("Invertebrates (crabs, shrimp, snails)", 0, 500,
+                inv = st.number_input("Crabs, shrimp, snails", 0, 500,
                                       int(prev["human_invert"]) if prev else kept_inv, 1, key=f"iv_{key}")
                 human = kept_fish + int(missed)
                 st.html(f'<div class="bs-readout"><p class="lbl">Your count</p><div class="num">{human}<span> fish</span></div>'
-                        f'<p class="bs-small">AI marked {ai_fish} fish · you removed {len(removed)} · added {int(missed)}'
-                        + (f'<br>Counting model estimate: <b>{sub["density_count"]:.0f}</b> fish' if sub.get("density_count") is not None else "")
+                        f'<p class="bs-small">AI boxes {ai_fish} − {len(removed)} removed + {int(missed)} added'
+                        + (f'<br>Second AI count: {sub["density_count"]:.0f}' if sub.get("density_count") is not None else "")
                         + '</p></div>')
             else:
                 removed, missed = [], 0
-                human = st.number_input("Fish you can count", 0, 500, int(prev["human_fish"]) if prev else 0, 1, key=f"hb_{key}")
-                inv = st.number_input("Invertebrates", 0, 500, int(prev["human_invert"]) if prev else 0, 1, key=f"ib_{key}")
-            notes = st.text_input("Notes (optional)", prev["notes"] if prev else "", key=f"nt_{key}",
-                                  placeholder="e.g. school at top left, only 5 clear")
+                human = st.number_input("Fish you can see", 0, 500, int(prev["human_fish"]) if prev else 0, 1, key=f"hb_{key}")
+                inv = st.number_input("Crabs, shrimp, snails", 0, 500, int(prev["human_invert"]) if prev else 0, 1, key=f"ib_{key}")
+            notes = st.text_input("Note", prev["notes"] if prev else "", key=f"nt_{key}", placeholder="Optional")
             ok = bool(C.reviewer())
             if not ok:
-                st.warning("Add your name under **Reviewer** in the sidebar to save.", icon=":material/badge:")
+                st.warning("Type your name in the sidebar to save.", icon=":material/badge:")
             if st.button("Save and next", type="primary", icon=":material/check:", width="stretch", disabled=not ok,
                          key=f"save_{key}"):
                 spent = time.time() - st.session_state.pop(f"t0_{key}", time.time())
@@ -222,21 +217,20 @@ def page() -> None:
                               list(removed), int(missed), int(human), int(inv), notes, round(spent, 1))
                 if mode == "blind":
                     d = CC.pct_difference(ai_fish, int(human))
-                    st.toast(f"Saved. AI counted {ai_fish}, you counted {int(human)}: {d:.0f}% difference "
-                             f"({'within' if d < CC.PCT_DIFF_LIMIT else 'over'} the protocol's 6%).", icon=":material/check_circle:")
+                    st.toast(f"AI {ai_fish}, you {int(human)}: {d:.0f}% apart "
+                             f"({'OK' if d < CC.PCT_DIFF_LIMIT else 'over the 6% limit'})", icon=":material/check_circle:")
                 else:
-                    st.toast(f"Saved: {int(human)} fish on subsample {pick + 1}.", icon=":material/check_circle:")
+                    st.toast(f"Saved: {int(human)} fish", icon=":material/check_circle:")
                 st.session_state["check_cursor"] = min(pick + 1, len(subs) - 1)
                 st.rerun()
         with left:
             if img is None:
-                st.info("The frame isn't available on this computer (the original video was moved).")
+                st.info("This frame isn't on this computer any more.")
             else:
                 shown = draw_marks(img, marks, set(removed), scale, invert) if mode == "assisted" else img
                 if mode == "assisted" and dmap is not None and st.toggle(
-                        "Show where the counting model sees fish", key=f"hm_{key}",
-                        help="Blue glow = the trained counting model thinks fish are there. Useful for spotting faint "
-                             "fish the boxes missed."):
+                        "Show where fish are likely", key=f"hm_{key}",
+                        help="Blue glow from the second AI count. Helps you spot faint fish the boxes missed."):
                     shown = overlay_density(shown, dmap)
                 st.image(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB), width="stretch",
                          alt=f"Subsample frame at {C.fmt_t(ft)}" + (f" with {len(marks)} numbered AI marks" if mode == "assisted" else ""))
@@ -244,35 +238,31 @@ def page() -> None:
                     present = {kind(m["label"], invert) for m in marks}
                     st.html('<p class="bs-small">' + " · ".join(
                         f'<span style="display:inline-block;width:10px;height:10px;border:2px solid {KIND_SWATCH[k]};'
-                        f'margin-right:4px"></span>{T.esc(k)}' for k in KIND_SWATCH if k in present) + " · grey ✕ = removed</p>")
-                st.caption(("Numbered boxes are the AI's marks. Click the image's expand icon to zoom. "
-                            if mode == "assisted" else "") +
-                           "Protocol rule: count a fish only if you can confirm it with two cues; uncertain movement is not counted.")
+                        f'margin-right:4px"></span>{T.esc(k)}' for k in KIND_SWATCH if k in present) + " · grey ✕ removed</p>")
                 ctx = []
                 for dt_ in (-1.0, -0.5, 0.5, 1.0):
                     im = frame_image(cfg, rep, round(ft + dt_, 3), 320)
                     if im is not None:
                         ctx.append((dt_, im))
                 if ctx:
-                    with st.expander("Context: half a second and one second either side"):
+                    with st.expander("Frames just before and after"):
                         cols = st.columns(len(ctx))
                         for c, (d, im) in zip(cols, ctx):
                             c.image(cv2.cvtColor(im, cv2.COLOR_BGR2RGB), caption=f"{d:+.1f} s", width="stretch")
 
     if rows:
-        with st.expander(f"Checked subsamples ({len(rows)})"):
+        with st.expander(f"Your checks ({len(rows)})"):
             df = pd.DataFrame(rows)
             df["time"] = df.subsample_t_s.map(C.fmt_t)
             df["difference %"] = [round(CC.pct_difference(a, h), 1) for a, h in zip(df.ai_fish, df.human_fish)]
             st.dataframe(df[["time", "mode", "reviewer", "ai_fish", "human_fish", "difference %", "missed_fish",
                              "human_invert", "seconds_spent", "notes"]].rename(columns={
-                "time": "Subsample", "mode": "Mode", "reviewer": "Reviewer", "ai_fish": "AI fish", "human_fish": "Your fish",
-                "missed_fish": "Added", "human_invert": "Invertebrates", "seconds_spent": "Seconds", "notes": "Notes"}),
+                "time": "Check point", "mode": "Mode", "reviewer": "Reviewer", "ai_fish": "AI fish", "human_fish": "Your fish",
+                "missed_fish": "Added", "human_invert": "Crabs/shrimp", "seconds_spent": "Seconds", "notes": "Notes"}),
                 hide_index=True, width="stretch")
         if any(r["mode"] == "assisted" for r in rows):
-            if st.button("Save corrections as training data", icon=":material/model_training:",
-                         help="Writes the checked frames and corrected boxes to outputs/training_labels/ for a future "
-                              "detector trained on Nova Scotia footage. Stays on this computer."):
+            if st.button("Use my checks to improve the AI", icon=":material/model_training:",
+                         help="Saves the checked frames and your corrections as training data (stays on this computer)."):
                 pw = int(rep.get("process_width", cfg["sampling"]["process_width"]))
                 folder = CC.export_training_labels(db, rep, path(cfg, "outputs_dir") / "training_labels",
                                                    lambda t: frame_image(cfg, rep, t, pw))

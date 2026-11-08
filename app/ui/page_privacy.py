@@ -25,101 +25,71 @@ def _streamlit_setting(key: str):
 def page() -> None:
     cfg = C.cfg()
     root = Path(cfg["_root"])
-    T.header("Trust", "Model & privacy",
-             "Everything BlueSight does happens on this computer. The AI models are files on this disk, the video is "
-             "never uploaded, and the pipeline counts every attempt to reach the internet. This page shows the evidence.")
+    T.header("", "Privacy", "Your video never leaves this computer. Here's the proof.")
 
     runs = C.list_runs()
     last = C.load_report(runs[0]) if runs else None
     net = (last or {}).get("network") or {}
     en = (last or {}).get("energy") or {}
-
-    # ------------------------------------------------------------------ headline indicator
-    if last and "external_connection_attempts" in net:
-        n = int(net["external_connection_attempts"])
-        ok = n == 0
-        icon, tone = ("✓", "ok") if ok else ("!", "bad")
-        words = ("0 external network calls during the last run" if ok else
-                 f"{n} external network call{'s' if n != 1 else ''} attempted during the last run (all blocked)")
-        st.html(f'<div role="status" class="bs-verdict t-{tone}">'
-                f'<span aria-hidden="true" class="ico"><span>{icon}</span></span>'
-                f'<span><span class="big">{words}</span>'
-                f'<span class="sub">Run <code>{T.esc(last["run_id"])}</code> · {T.esc(last["generated_at"].replace("T", " "))} · '
-                f'network guard mode “{T.esc(net.get("mode", "?"))}”, local connections allowed: {net.get("local_connections", 0)}</span></span></div>')
-    else:
-        st.info("No run has recorded network data yet. Analyse a video and this indicator fills in from the pipeline's network guard.")
-
-    # ------------------------------------------------------------------ live status cards
-    dev = C.device_name()
-    try:
-        import torch
-
-        torch_v = torch.__version__
-    except Exception:
-        torch_v = "not installed"
+    n_ext = int(net.get("external_connection_attempts", 0)) if last and "external_connection_attempts" in net else None
+    dev = {"mps": "Apple GPU", "cuda": "NVIDIA GPU", "cpu": "CPU"}.get(C.device_name(), C.device_name())
     usage = _streamlit_setting("browser.gatherUsageStats")
-    addr = _streamlit_setting("server.address")
-    T.cards([
-        {"k": "Compute device", "v": {"mps": "Apple GPU", "cuda": "NVIDIA GPU", "cpu": "CPU"}.get(dev, dev), "tone": "info",
-         "d": f"{T.esc(C.hardware())} · PyTorch {T.esc(torch_v)}"},
-        {"k": "Offline mode", "v": "On" if C.offline_mode() else "Off", "tone": "ok" if C.offline_mode() else "attn",
-         "d": f"HF_HUB_OFFLINE={T.esc(os.environ.get('HF_HUB_OFFLINE', 'unset'))} · "
-              f"TRANSFORMERS_OFFLINE={T.esc(os.environ.get('TRANSFORMERS_OFFLINE', 'unset'))}"},
-        {"k": "App telemetry", "v": "Off" if usage is False else "On", "tone": "ok" if usage is False else "attn",
-         "d": f"Streamlit usage statistics {'off' if usage is False else 'ON'} · app reachable from {T.esc(addr)} only"},
-        {"k": "Last run", "v": f"{last['runtime_s']:.0f}" if last else "—", "unit": "s" if last else "",
-         "d": (f"{T.esc(last['run_id'])}<br>" +
-               (f"≈ {en['energy_wh']:.2f} Wh · {en['co2_g']:.2f} g CO₂e (estimate)" if en.get("energy_wh") is not None
-                else T.esc(en.get("note", "energy not measured")))) if last else "no runs yet"},
-    ])
+    full_wh = None
+    ef = root / "outputs" / "logs" / "energy.csv"
+    if ef.exists():
+        e = pd.read_csv(ef)
+        e = e[(e.cached_detection == 0) & e.energy_wh.notna()]
+        full_wh = float(e.energy_wh.iloc[-1]) if len(e) else None
+    checks = [
+        ("0 internet connections" if n_ext == 0 else (f"{n_ext} connections blocked" if n_ext else "Not run yet"),
+         "during the last analysis", n_ext == 0),
+        ("Works with Wi-Fi off", "models are stored on this computer", C.offline_mode()),
+        ("No tracking", "no usage statistics are sent", usage is False),
+        (f"Runs on this {dev}", "nothing is processed in the cloud", True),
+        ("Open-source models", "BioCLIP (MIT), DINOv2 (Apache-2.0)", True),
+        (f"{full_wh:.1f} Wh per analysis" if full_wh else "Low energy",
+         "last full analysis; re-runs reuse saved work", True),
+    ]
+    st.html('<div class="bs-checks">' + "".join(
+        f'<div class="bs-check"><span class="ico" aria-hidden="true">{"✓" if ok else "!"}</span>'
+        f'<div><b>{T.esc(a)}</b><span>{T.esc(b)}</span></div></div>' for a, b, ok in checks) + '</div>')
 
-    # ------------------------------------------------------------------ models
-    st.subheader("AI models on this computer", anchor=False)
-    inv_f = root / "outputs" / "model_inventory.json"
-    if inv_f.exists():
-        inv = json.loads(inv_f.read_text())
-        rows = "".join(
-            f'<tr><td><b>{T.esc(m["role"])}</b><br><span class="bs-small">{T.esc(m["name"])}</span></td>'
-            f'<td>{T.esc(m["version"])}</td><td>{T.esc(m["licence"])}</td><td>{T.esc(m["loaded_by"])}</td>'
-            f'<td>{T.esc(m["size_mb"])} MB</td><td><code>{T.esc(m["local_path"])}</code><br>'
-            f'<span class="bs-small">SHA-256 {T.esc(m["sha256"][:16])}…</span></td></tr>' for m in inv["models"])
-        st.html('<table class="bs-table"><thead><tr><th scope="col">Model</th><th scope="col">Version</th><th scope="col">Licence</th>'
-                '<th scope="col">Loaded by</th><th scope="col">Size</th><th scope="col">Where it lives</th></tr></thead>'
-                f'<tbody>{rows}</tbody></table>')
-        st.caption(f"Inventory generated {inv['generated_at'].replace('T', ' ')} by scripts/model_inventory.py. "
-                   "Full hashes are in LOCAL_VERIFICATION.md.")
-    else:
-        st.info("Model inventory not generated yet. Run `python scripts/model_inventory.py`.")
+    with st.expander("Technical details", icon=":material/terminal:"):
+        try:
+            import torch
 
-    # ------------------------------------------------------------------ how it works
-    st.subheader("How it stays local", anchor=False)
-    st.html("""<ol class="bs-how">
-<li>The video is read straight from this computer's disk with OpenCV. It is never uploaded.</li>
-<li>The AI models (BioCLIP for species, the motion detector for fish) are files in <code>models/</code>, downloaded once.
-    BlueSight switches Hugging Face to offline mode before any model library loads, so they can't check for updates.</li>
-<li>All processing runs on this computer's GPU or CPU. Results go to <code>outputs/</code> and a local SQLite database.</li>
-<li>During every analysis a <b>network guard</b> watches every outgoing connection. Connections to this computer are allowed;
-    anything else is blocked and counted. The count is shown above.</li>
-<li>This app only listens on <code>localhost</code> and sends no usage statistics.</li>
+            torch_v = torch.__version__
+        except Exception:
+            torch_v = "not installed"
+        st.markdown(f"- Device: {C.hardware()} · PyTorch {torch_v}\n"
+                    f"- Offline flags: HF_HUB_OFFLINE={os.environ.get('HF_HUB_OFFLINE', 'unset')}, "
+                    f"TRANSFORMERS_OFFLINE={os.environ.get('TRANSFORMERS_OFFLINE', 'unset')}\n"
+                    f"- App address: {_streamlit_setting('server.address')} only\n"
+                    + (f"- Last run: `{last['run_id']}`, {last['runtime_s']:.0f} s, network guard mode “{net.get('mode', '?')}”"
+                       if last else ""))
+        inv_f = root / "outputs" / "model_inventory.json"
+        if inv_f.exists():
+            inv = json.loads(inv_f.read_text())
+            rows = "".join(
+                f'<tr><td><b>{T.esc(m["role"])}</b><br><span class="bs-small">{T.esc(m["name"])}</span></td>'
+                f'<td>{T.esc(m["licence"])}</td><td>{T.esc(m["size_mb"])} MB</td><td><code>{T.esc(m["local_path"])}</code><br>'
+                f'<span class="bs-small">SHA-256 {T.esc(m["sha256"][:16])}…</span></td></tr>' for m in inv["models"])
+            st.html('<table class="bs-table"><thead><tr><th scope="col">Model</th><th scope="col">Licence</th>'
+                    '<th scope="col">Size</th><th scope="col">Where it lives</th></tr></thead>'
+                    f'<tbody>{rows}</tbody></table>')
+        st.html("""<ol class="bs-how">
+<li>The video is read from this computer's disk. It is never uploaded.</li>
+<li>Models are files in <code>models/</code>, downloaded once. Offline mode is switched on before they load.</li>
+<li>During every analysis a network guard blocks and counts any connection that leaves this computer.</li>
+<li>The app only listens on <code>localhost</code> and sends no usage statistics.</li>
 </ol>""")
-
-    # ------------------------------------------------------------------ energy history
-    rt = root / "outputs" / "logs" / "energy.csv"
-    if rt.exists():
-        st.subheader("Energy per run (estimates)", anchor=False)
-        df = pd.read_csv(rt).tail(12).iloc[::-1]
-        df = pd.DataFrame({"When": df.generated_at.str.replace("T", " "), "Analysis": df.run_id.str.replace("__", " · "),
-                           "Detections": df.cached_detection.map({1: "reused from cache", 0: "full processing"}),
-                           "Runtime (s)": df.runtime_s, "Energy (Wh)": df.energy_wh, "CO₂e (g)": df.co2_g,
-                           "External connections": df.external_connections})
-        st.dataframe(df, hide_index=True, width="stretch")
-        st.caption("Estimated with CodeCarbon's offline tracker: CPU power from CPU load, RAM from a power model, and Nova Scotia's "
-                   "grid carbon intensity. The Apple GPU is not measured, so these are lower bounds: estimates, not meter readings.")
-    tests = root / "outputs" / "logs" / "offline_test.json"
-    if tests.exists():
-        t = json.loads(tests.read_text())
-        st.subheader("Offline test", anchor=False)
-        st.html(f'<p>{T.badge("known" if t.get("passed") else "unfamiliar", "Passed" if t.get("passed") else "Failed")} '
-                f'<span class="bs-small">tests/test_offline.py · {T.esc(t.get("when", ""))} · all non-local connections blocked; '
-                f'blocked attempts: {t.get("blocked_attempts", "?")} · pipeline runtime {t.get("runtime_s", "?")} s</span></p>')
-    st.caption(f"Python {platform.python_version()} · {platform.platform()}")
+        rt = root / "outputs" / "logs" / "energy.csv"
+        if rt.exists():
+            df = pd.read_csv(rt).tail(12).iloc[::-1]
+            df = pd.DataFrame({"When": df.generated_at.str.replace("T", " "), "Analysis": df.run_id.str.replace("__", " · "),
+                               "Saved work reused": df.cached_detection.map({1: "yes", 0: "no"}),
+                               "Time (s)": df.runtime_s, "Energy (Wh)": df.energy_wh, "CO₂e (g)": df.co2_g,
+                               "Internet connections": df.external_connections})
+            st.dataframe(df, hide_index=True, width="stretch")
+            st.caption("Energy is an estimate (CPU and memory; the Apple GPU isn't measured).")
+        st.caption(f"Python {platform.python_version()} · {platform.platform()}")

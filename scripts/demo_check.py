@@ -32,9 +32,9 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 def wait_run(page: Page, timeout_s: float = 900) -> None:
     t0 = time.time()
     while time.time() - t0 < timeout_s:
-        if page.get_by_text("Finished in", exact=False).count():
+        if page.get_by_text("Done in", exact=False).count():
             return
-        if page.get_by_text("The analysis stopped", exact=False).count():
+        if page.get_by_text("Something went wrong", exact=False).count():
             raise RuntimeError("analysis failed in the app")
         time.sleep(2)
     raise TimeoutError("analysis did not finish")
@@ -43,7 +43,7 @@ def wait_run(page: Page, timeout_s: float = 900) -> None:
 def analyze(page: Page, url: str, out: Path, tag: str) -> None:
     page.goto(f"{url}/?reviewer=Demo+Biologist")
     settle(page, 3)
-    page.get_by_text("Custom window", exact=True).click()
+    page.get_by_text("Pick a part", exact=True).click()
     settle(page, 2)
     for label, val in (("Start (seconds)", "1280"), ("Length (seconds)", "75")):
         box = page.get_by_label(label)
@@ -92,7 +92,7 @@ def main() -> None:
         full_shot(page, out / "4_review_item1.png", 1440)
         body = page.inner_text("body")
         first = re.search(r"(\d+:\d\d)–(\d+:\d\d)", body[body.find("Item 1 of"):]) if "Item 1 of" in body else None
-        check("4: review item #1 is 'unfamiliar'", "Possibly a species not in the registry" in body)
+        check("4: review item #1 is 'unfamiliar'", "What is this?" in body)
         check("4: item #1 is in the crab's time span (21:3x)", bool(first and first.group(1).startswith("21:3")),
               first.group(0) if first else "no time found")
         box = page.get_by_placeholder("Pick from the Nova Scotia list, or type a name")

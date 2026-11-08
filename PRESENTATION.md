@@ -18,12 +18,12 @@ Demo: [DEMO.md](DEMO.md). Every number below is measured; sources are in [EVALUA
 | 2 | The problem | 0:30 | Murky water (70% of our test window was too murky to name species), fatigue at 0.25× speed, new species arriving, and **no hosted AI allowed**. |
 | 3 | Their protocol | 0:30 | "We started from their protocol, not from a model": 15-min window, 15 frames every 60 s, two cues, 95% QC agreement. Output keeps their "Unable to ID" column. |
 | 4 | Our solution | 0:15 | "The AI does the tedious watching. Biologists make every decision." |
-| 5 | Four steps | 0:30 | Analyze → Count check → Review → Excel. Under the hood: small open models, measured on their footage (the big open detector found 0 of 36 fish, so we didn't use it). |
-| 6 | Count check | 0:40 | **Live demo 1**: Count check page, remove the "too murky" marks in one click (82 → 63), toggle the heatmap, point at ⚑ "check first". Say: the AI misses faint fish, so a person confirms 15 frames instead of watching 15 minutes; corrections become training data. |
-| 7 | Unfamiliar species | 0:50 | **Live demo 2**: Review queue item #1 is the green crab we hid from the system; best match 0.45, so "I don't know this". Pick *European green crab* → red watch-list banner. |
+| 5 | Four steps | 0:30 | Analyze → Check counts → Review → Excel. Under the hood: small open models, measured on their footage (the big open detector found 0 of 36 fish, so we didn't use it). |
+| 6 | Check counts | 0:40 | **Live demo 1**: Check counts page, remove the "too murky" marks in one click (82 → 63), toggle the heatmap, point at ⚑ "check first". Say: the AI misses faint fish, so a person confirms 15 frames instead of watching 15 minutes; corrections become training data. |
+| 7 | Unfamiliar species | 0:50 | **Live demo 2**: New animals item #1 is the green crab we hid from the system; best match 0.45, so "I don't know this". Pick *European green crab* → red watch-list banner. |
 | 8 | Watch list | 0:25 | Invasive/unexpected species alerts, temperature-range check (staff enter the temperature, nothing fetched), "not on the expected list" = possible new arrival. |
 | 9 | Results | 0:45 | Honest numbers: marks are 76% precise but recall 51%; AI-only counts undercount (80 vs 102). **Our counter trained on their own tally dots: 37.8 vs 36 on a frame it never saw** (motion detector: 14). Faintest frame still hard, so it's a second opinion that tells staff where to check. |
-| 10 | Privacy | 0:30 | **Live demo 3** (optional): Model & privacy page, "0 external network calls". Open models only (MIT/Apache), no LLM, 1.2 GB of models vs a 12 GB GPU. |
+| 10 | Privacy | 0:30 | **Live demo 3** (optional): Privacy page, "0 external network calls". Open models only (MIT/Apache), no LLM, 1.2 GB of models vs a 12 GB GPU. |
 | 11 | Built for staff | 0:20 | Double-click start, plain language, their spreadsheet, field guide. |
 | 12 | Time saved | 0:20 | Say clearly whether the numbers are measured or estimated. |
 | 13 | Scalable | 0:20 | Batch folders, new species without retraining, corrections become training data. |
@@ -35,7 +35,7 @@ If time is short, skip demo 3 and slides 12–13; never skip slide 9 (judges rew
 ## Judge Q&A (answers backed by measurements)
 
 **How accurate is it?**
-It depends on the job. Species flagging is strong: 90% of species we hid from the system were flagged instead of mislabelled, and the green crab came first in the queue. Counting is the weak spot for the AI alone: it finds about half the fish in murky water (precision 0.76, recall 0.51 at 14:01), and AI-only counts undercount (80 vs the biologists' 102). Our counter trained on the biologists' own dots matched 37.8 vs 36 on a frame it never saw, but undercounts the faintest frame. That's why counts are confirmed by a person in Count check, which takes minutes instead of watching the whole window.
+It depends on the job. Species flagging is strong: 90% of species we hid from the system were flagged instead of mislabelled, and the green crab came first in the queue. Counting is the weak spot for the AI alone: it finds about half the fish in murky water (precision 0.76, recall 0.51 at 14:01), and AI-only counts undercount (80 vs the biologists' 102). Our counter trained on the biologists' own dots matched 37.8 vs 36 on a frame it never saw, but undercounts the faintest frame. That's why counts are confirmed by a person in Check counts, which takes minutes instead of watching the whole window.
 
 **Why is the AI worse on some frames?**
 The fish are small, pale and translucent; at 22:00 they're nearly invisible in a still frame. We only had two hand-counted frames from the survey video to learn from. Every count a person checks in the app is saved as training data, so the counter improves with use (`scripts/train_density.py --final`).
