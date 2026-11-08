@@ -234,6 +234,15 @@ table.bs-table th{ text-align:left; color:var(--muted); font-weight:600; font-si
   border-bottom:1px solid var(--border-strong); padding:8px 10px; }
 table.bs-table td{ border-bottom:1px solid var(--border); padding:10px; vertical-align:top; }
 table.bs-table code{ font-size:12.5px; word-break:break-all; }
+
+/* ---------- watch-list (invasive species) alert ---------- */
+.bs-alert{ display:flex; gap:16px; align-items:flex-start; padding:16px 20px; margin:8px 0 18px; border-radius:14px;
+  color:var(--bad-fg); background:var(--bad-bg); border:2px solid var(--bad-bd); }
+.bs-alert .ico{ font-size:22px; font-weight:800; width:42px; height:42px; border-radius:50%; flex:none; display:flex;
+  align-items:center; justify-content:center; background:var(--bad-fg); color:var(--bad-bg); }
+.bs-alert .big{ font-family:var(--serif); font-size:21px; font-weight:600; line-height:1.3; display:block; }
+.bs-alert .sub{ font-size:14.5px; color:var(--ink-2); margin-top:4px; display:block; }
+.bs-alert em{ font-style:italic; }
 </style>
 """
 
@@ -279,6 +288,12 @@ def badge(status: str, text: str | None = None) -> str:
     label, ico, tone, expl = STATUS.get(status, (status, "•", "info", ""))
     return (f'<span class="bs-badge t-{tone}" title="{esc(expl)}">'
             f'<span class="ico" aria-hidden="true">{ico}</span>{esc(text or label)}</span>')
+
+
+def alert(title: str, body_html: str) -> None:
+    """Prominent red alert (watch-list species). Icon + text + colour; announced to screen readers."""
+    st.html(f'<div class="bs-alert" role="alert"><span class="ico" aria-hidden="true">!</span>'
+            f'<span><span class="big">{esc(title)}</span><span class="sub">{body_html}</span></span></div>')
 
 
 def plain_badge(text: str, tone: str = "info", icon: str = "") -> str:

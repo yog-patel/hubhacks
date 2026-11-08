@@ -29,6 +29,29 @@ def record_decision(flag: dict, decision: str, species: str | None) -> None:
     log.info("review %s: %s %s by %s", flag["flag_id"], decision, species, who)
 
 
+def flag_watch(name: str) -> None:
+    """Remember that a watch-list species was just approved, so the next render shows an alert."""
+    from bluesight import watchlist as WL
+
+    e = WL.match(C.cfg(), name)
+    if e:
+        st.session_state["watch_alert"] = e
+        log.warning("watch-list species approved in review: %s (%s) by %s", e["common"], e.get("scientific"), C.reviewer())
+
+
+def show_watch_alert() -> None:
+    e = st.session_state.get("watch_alert")
+    if not e:
+        return
+    T.alert(f"{e['common'][:1].upper() + e['common'][1:]} is on the invasive species watch list",
+            f"You just added <em>{T.esc(e.get('scientific', ''))}</em> to the registry. From the next analysis on, BlueSight raises "
+            "this alert on the Analyze and Results pages wherever it recognises it. Report the sighting following your "
+            "invasive-species protocol.")
+    if st.button("Dismiss alert", icon=":material/close:", key="watch_dismiss"):
+        st.session_state.pop("watch_alert", None)
+        st.rerun()
+
+
 def title_for(f: dict, top3: list[dict]) -> str:
     if f["status"] == "unfamiliar":
         return "Possibly a species not in the registry"
@@ -44,6 +67,7 @@ def page() -> None:
     T.header("Step 3 of 3 · Review", "Review queue",
              "Here's everything BlueSight couldn't identify on its own, most unfamiliar first. Nothing joins the species "
              "registry without your decision, and an approval takes effect straight away (no retraining).", step=3)
+    show_watch_alert()
 
     run_ids = [r["run_id"] for r in db.q("SELECT run_id FROM runs ORDER BY started_at DESC")]
     if not run_ids:
@@ -128,6 +152,7 @@ def page() -> None:
                     key = C.registry().add_images(name, crops, C.reviewer(), new_species=True, ref_tag=f"{f['flag_id']}_")
                     record_decision(f, "new_species", key)
                     st.toast(f"Added {name.strip()} to the registry. Re-run the video to count it.", icon=":material/check_circle:")
+                    flag_watch(name)
                     st.rerun()
         with b2:
             st.html('<p class="bs-choice">A species we already know</p>')
@@ -142,6 +167,7 @@ def page() -> None:
                          help="Confirm it is this registry species. Its crops are added to that species' reference images."):
                 C.registry().add_images(ex, crops, C.reviewer(), new_species=False, ref_tag=f"{f['flag_id']}_")
                 record_decision(f, "existing_species", ex)
+                flag_watch(ex)
                 st.toast(f"Confirmed as {ex.replace('_', ' ')}. Reference images updated.", icon=":material/check_circle:")
                 st.rerun()
         with b3:

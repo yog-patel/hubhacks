@@ -178,6 +178,17 @@ def page() -> None:
                    "counted in 'Unknown/Unable to ID due to visibility', so treat totals as a lower bound, not as zero fish.",
                    icon=":material/visibility_off:")
 
+    # ------------------------------------------------------------------ watch list (invasive species)
+    from bluesight import watchlist as WL
+
+    for h in WL.hits(cfg, C.db(), rep["run_id"]):
+        e = h["entry"]
+        T.alert(f"Watch list: {e['common']} detected",
+                f"<em>{T.esc(e.get('scientific', ''))}</em> is on the {T.esc(e.get('status', 'watch'))} species watch list. "
+                f"Recognised on {h['tracks']} track{'s' if h['tracks'] != 1 else ''}, first seen at {C.fmt_t(h['first_s'])}, last at "
+                f"{C.fmt_t(h['last_s'])}. Check the clips in the annotated video and report the sighting following your "
+                "invasive-species protocol.")
+
     # ------------------------------------------------------------------ biologist-verified counts
     from bluesight import assisted as A
 
@@ -192,8 +203,8 @@ def page() -> None:
                    f"**{np.mean([v['final_count'] for v in vdone]):.1f}** organisms per subsample (BlueSight alone on the same "
                    f"frames: {np.mean(ai_same):.1f}). The CSV download includes the verified counts.", icon=":material/verified:")
     else:
-        st.info("BlueSight finds about half of the faint fish a biologist counts. For an exact protocol count, check its marks "
-                "on the subsample frames in **Verify counts** (about a minute per frame).", icon=":material/ads_click:")
+        st.info("In our tests BlueSight found about half of the faint fish a biologist counts (EVALUATION.md). For an exact "
+                "protocol count, check its marks on the subsample frames in **Verify counts**.", icon=":material/ads_click:")
     st.page_link(C.PAGES["assisted"], label="Verify counts", icon=":material/ads_click:")
 
     # ------------------------------------------------------------------ species table

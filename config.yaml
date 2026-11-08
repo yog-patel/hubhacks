@@ -142,6 +142,18 @@ species_candidates:
 # counted in the protocol's invertebrate column, not in total fish
 invertebrate_species: [european_green_crab, atlantic_rock_crab, sand_shrimp]
 
+# Invasive / unexpected species watch list (app alerts; nothing is fetched online). A STARTER list of aquatic invasive
+# species reported in Nova Scotia coastal waters: staff should check it against DFO's and Coastal Action's current lists.
+watch_list:
+  species:
+    - {key: european_green_crab, common: European green crab, scientific: Carcinus maenas, status: invasive,
+       aliases: [green crab, shore crab]}
+    - {key: clubbed_tunicate, common: clubbed tunicate, scientific: Styela clava, status: invasive}
+    - {key: vase_tunicate, common: vase tunicate, scientific: Ciona intestinalis, status: invasive}
+    - {key: golden_star_tunicate, common: golden star tunicate, scientific: Botryllus schlosseri, status: invasive}
+    - {key: violet_tunicate, common: violet tunicate, scientific: Botrylloides violaceus, status: invasive}
+    - {key: oyster_thief, common: oyster thief (green fleece), scientific: Codium fragile, status: invasive}
+
 background_prompts:        # used to reject crops that are not organisms
   - sandy seabed with rocks
   - murky green water

@@ -50,6 +50,10 @@ def page() -> None:
                       T.plain_badge("From labelled photos", "info"))
             if not r["active"]:
                 badges += " " + T.plain_badge("Inactive", "muted")
+            from bluesight import watchlist as WL
+
+            if WL.match(C.cfg(), r["name"]) or WL.match(C.cfg(), r["display_name"]):
+                badges += " " + T.plain_badge("Invasive · watch list", "bad", "!")
             st.html(f'<p class="bs-sp-name">{T.esc(name[:1].upper() + name[1:])}</p>'
                     f'<div>{badges}</div>'
                     f'<dl class="bs-meta"><dt>Added</dt><dd>{T.esc((r["date_added"] or "")[:10])}</dd>'

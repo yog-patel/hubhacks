@@ -184,6 +184,13 @@ def show_summary(rep: dict, secs: float | None) -> None:
            + (f"External network connections during the run: **{ext}**. " if ext is not None else "")
            + (f"Estimated energy: {en['energy_wh']:.2f} Wh." if en.get("energy_wh") is not None else ""))
     st.success(msg)
+    from bluesight import watchlist as WL
+
+    for h in WL.hits(C.cfg(), C.db(), rep["run_id"]):
+        e = h["entry"]
+        T.alert(f"Watch list: {e['common']} detected",
+                f"<em>{T.esc(e.get('scientific', ''))}</em> ({T.esc(e.get('status', 'watch'))}) recognised on {h['tracks']} "
+                f"track{'s' if h['tracks'] != 1 else ''}, first at {C.fmt_t(h['first_s'])}. Details on the Results page.")
     pend = rep.get("review_items_packaged", rep.get("review_items", 0))
     T.cards([
         {"k": "Fish counted", "v": f"{rep['MeanCount_total_fish']:.1f}", "d": "MeanCount: mean fish per 60-s subsample", "tone": "info"},
