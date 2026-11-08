@@ -226,6 +226,39 @@ button kbd[aria-label^="Shortcut"]{ opacity:.8 !important; font-weight:700; bord
 .bs-next-meta{ font-size:14px; color:var(--muted); margin:6px 0 0; line-height:1.45; }
 .bs-next-meta b{ color:var(--ink); font-size:16px; font-variant-numeric:tabular-nums; }
 
+/* ---------- report sentence (numbers inside the sentence they prove) ---------- */
+.bs-summary{ font-size:24px; line-height:1.4; color:var(--ink-2); max-width:44ch; margin:var(--s2) 0 var(--s5); letter-spacing:-0.005em; }
+.bs-summary b{ color:var(--ink); font-weight:750; font-variant-numeric:tabular-nums; }
+.bs-summary b.w{ color:var(--warn-fg); }
+/* legend shown above a visual, never as a caption under it */
+.bs-key{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; font-size:14px; color:var(--ink-2); margin:0 0 8px; }
+.bs-key .sw{ display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:-10px; }
+.bs-key .sw.box{ background:transparent; border:2px solid; }
+.bs-key .dm{ color:var(--warn-fg); margin-right:-10px; } .bs-key .fl{ color:var(--warn-fg); margin-right:-10px; }
+.bs-key .x{ color:var(--muted); font-weight:800; margin-right:-10px; }
+
+/* ---------- micro-interactions: buttons step and press, linked tiles lift, photos zoom inside their frame ---------- */
+.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] button, [data-testid="stPageLink"] a{
+  transition:transform .14s ease, box-shadow .14s ease, background-color .14s ease; }
+.stButton button:hover, .stDownloadButton button:hover, [data-testid="stFormSubmitButton"] button:hover{ transform:translateY(-1px); }
+.stButton button:active, .stDownloadButton button:active, [data-testid="stFormSubmitButton"] button:active{ transform:translateY(0) scale(.98); }
+[data-testid="stPageLink"] a span{ background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;
+  transition:background-size .2s ease; }
+[data-testid="stPageLink"] a:hover span{ background-size:100% 1.5px; }
+[class*="st-key-upnext"]{ transition:transform .16s ease; }
+[class*="st-key-upnext"]:hover{ transform:translateY(-2px); }
+[class*="st-key-upnext"] [data-testid="stImage"], .st-key-crops [data-testid="stImage"],
+[class*="st-key-fg_"] [data-testid="stImage"], [class*="st-key-spcard"] [data-testid="stImage"]{ overflow:hidden; border-radius:var(--r); }
+[class*="st-key-upnext"] [data-testid="stImage"] img, .st-key-crops [data-testid="stImage"] img,
+[class*="st-key-fg_"] [data-testid="stImage"] img, [class*="st-key-spcard"] [data-testid="stImage"] img{ transition:transform .3s ease; }
+[class*="st-key-upnext"]:hover [data-testid="stImage"] img, .st-key-crops [data-testid="stImage"]:hover img,
+[class*="st-key-fg_"]:hover [data-testid="stImage"] img, [class*="st-key-spcard"]:hover [data-testid="stImage"] img{ transform:scale(1.03); }
+/* one entrance on load: the main panel of the first screen */
+@keyframes bs-enter{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+.st-key-hero, .st-key-check_card, .st-key-review_card{ animation:bs-enter .45s ease-out both; }
+@media (prefers-reduced-motion: reduce){ .st-key-hero, .st-key-check_card, .st-key-review_card{ animation:none; }
+  .stButton button:hover, [class*="st-key-upnext"]:hover{ transform:none; } }
+
 /* ---------- privacy checklist ---------- */
 .bs-checks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:var(--s5) var(--s6); margin:var(--s4) 0 var(--s6); }
 .bs-check{ display:flex; gap:14px; align-items:flex-start; }

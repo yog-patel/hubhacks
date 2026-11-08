@@ -259,3 +259,16 @@ registry. NC-licensed photos were excluded to keep everything permissive.
 * **Accessibility scan:** all images have alt text; text contrast passes (flagged items were text on translucent button
   tints, measured against the tint). Remaining: Streamlit's own 16 px help icons and 13 px checkboxes, which can't be
   resized without patching Streamlit. Screen-reader and 200 % zoom testing still not done (D23).
+
+## D38. Pass with taste-skill (github.com/Leonxlnx/taste-skill, read as guidance; its scripts and hook were not run)
+taste-skill targets marketing websites (one section per screen, photographs, shader moments, a Node checker run as a
+stop hook), so only its rules that fit an app were applied:
+* **No "strip of figures":** the Report and the post-run summary now put each number in the sentence it proves
+  ("An average of 20.7 fish per check point ... at most 109 at one moment ...") instead of a row of big numbers.
+* **No captions under visuals:** colour keys moved above the check-point chart, the AI-marks frame and the annotated
+  video; the chart's duplicate legend and the caption under it are gone.
+* **Copy:** buttons are a verb and an object ("Save count", "Mark as not an animal", "Open this one"); no arrow appended
+  to link text; no process talk ("Here's the proof" removed).
+* **Quiet micro-interactions:** buttons step up 1 px on hover and press on click, page links draw an underline,
+  next-item tiles lift 2 px, photos zoom 3 % inside their frame, and the main panel of each working page enters once on
+  load. All of it rests under reduced motion.

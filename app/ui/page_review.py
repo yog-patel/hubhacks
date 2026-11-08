@@ -151,7 +151,7 @@ def page() -> None:
                 st.rerun()
         with b3:
             st.html('<p class="bs-choice">Not an animal</p><p class="bs-small" style="margin:0 0 12px">Sand, pole, shadow</p>')
-            if st.button("Not an animal", key=f"rj_{f['flag_id']}", icon=":material/block:", width="stretch",
+            if st.button("Mark as not an animal", key=f"rj_{f['flag_id']}", icon=":material/block:", width="stretch",
                          shortcut="X", disabled=not ok,
                          help="Left out of counts. Similar things are skipped next time."):
                 record_decision(f, "reject", None)
@@ -161,7 +161,7 @@ def page() -> None:
         if n1.button("Back", key="prev", icon=":material/arrow_back:", shortcut="K", width="stretch", disabled=len(pending) < 2):
             st.session_state["review_cursor"] = (cur - 1) % len(pending)
             st.rerun()
-        if n2.button("Skip", key="next", icon=":material/arrow_forward:", shortcut="J", width="stretch",
+        if n2.button("Skip", key="next", icon=":material/redo:", shortcut="J", width="stretch",
                      disabled=len(pending) < 2):
             st.session_state["review_cursor"] = (cur + 1) % len(pending)
             st.rerun()
@@ -180,8 +180,7 @@ def page() -> None:
                              alt=f"Best view of the item seen at {C.fmt_t(x['start_s'])}–{C.fmt_t(x['end_s'])}")
                 st.html(f'<div class="bs-item-head">{T.badge(x["status"])}</div>'
                         f'<p class="bs-next-meta"><b>{C.fmt_t(x["start_s"])}–{C.fmt_t(x["end_s"])}</b></p>')
-                if st.button("Open", key=f"go_{x['flag_id']}", width="stretch", type="tertiary",
-                             icon=":material/arrow_outward:"):
+                if st.button("Open this one", key=f"go_{x['flag_id']}", width="stretch", type="tertiary"):
                     st.session_state["review_cursor"] = i
                     st.rerun()
     _reviewed_table(where, args)

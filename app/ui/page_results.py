@@ -190,7 +190,7 @@ def checkpoint_chart(rep: dict, chk_rows: list[dict]) -> alt.Chart:
     bars = alt.Chart(df).mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3, size=min(48, max(14, 600 // max(1, len(df))))).encode(
         x=x, y=alt.Y("count:Q", title="Fish", axis=alt.Axis(labelColor=P["text"], titleColor=P["text"], gridColor=P["grid"])),
         color=alt.Color("who:N", scale=alt.Scale(domain=["AI", "Checked by you"], range=[P["sub"], P["count"]]),
-                        legend=alt.Legend(title=None, orient="top", labelColor=P["text"], labelFontSize=13)),
+                        legend=None),
         tooltip=["time", alt.Tooltip("count:Q", title="Fish"), alt.Tooltip("who:N", title="Counted by"),
                  alt.Tooltip("second:Q", title="Second AI count", format=".0f")])
     layers = bars
@@ -232,15 +232,15 @@ def page() -> None:
             f'<span>Video <b>{C.fmt_t(w["start_s"])}–{C.fmt_t(w["end_s"])}</b></span></div>')
     show_alerts(al)
     checked = chk["n_checked"] > 0
-    T.stats([
-        {"k": "fish per check point (average)" + (", with your checks" if checked else ", AI only"),
-         "v": f"{(chk['MeanCount_checked'] if checked else rep['MeanCount_total_fish']):.1f}", "tip": "Protocol MeanCount"},
-        {"k": "most fish at one moment", "v": max((s.get("total_fish_count", 0) for s in rep["subsamples"]), default=0),
-         "tip": "Protocol MaxN (AI count)"},
-        {"k": "species named", "v": len(known_species)},
-        {"k": "of the video too murky", "v": pct(vis["fraction_below_v_min"]), "unit": "%",
-         "tone": "attn" if vis["fraction_below_v_min"] > 0.25 else ""},
-    ])
+    mean = chk["MeanCount_checked"] if checked else rep["MeanCount_total_fish"]
+    most = max((s.get("total_fish_count", 0) for s in rep["subsamples"]), default=0)
+    names = ", ".join(nice_label(r["label"]).lower() for r in known_species) or "none yet"
+    murky = pct(vis["fraction_below_v_min"])
+    st.html(f'<p class="bs-summary">An average of <b title="Protocol MeanCount">{mean:.1f} fish</b> per check point'
+            f'{"" if checked else " (AI count, not yet checked)"}, and at most <b title="Protocol MaxN">{most}</b> at one moment. '
+            f'Species named: <b>{T.esc(names)}</b>. '
+            + (f'<b class="w">{murky}%</b> of the video was too murky to name species.' if vis["fraction_below_v_min"] > 0
+               else 'The water was clear enough to name species throughout.') + '</p>')
     if not checked:
         n = len(rep["subsamples"])
         st.page_link(C.PAGES["check"], label=f"Confirm these counts: check {n} frame{'s' if n != 1 else ''}",
@@ -248,10 +248,12 @@ def page() -> None:
 
     # ------------------------------------------------------------------ check points
     st.subheader("Fish at each check point", anchor=False)
+    if (rep.get("density") or {}).get("MeanCount_density") is not None:
+        st.html('<p class="bs-key"><span class="sw" style="background:var(--border-strong)"></span>AI count'
+                '<span class="sw" style="background:var(--primary)"></span>Checked by you'
+                '<span class="dm">◆</span>Second AI count<span class="fl">⚑</span>The two disagree</p>')
     st.altair_chart(checkpoint_chart(rep, chk_rows), width="stretch", theme=None,
                     alt="Bar chart of fish counted at each one-minute check point")
-    if (rep.get("density") or {}).get("MeanCount_density") is not None:
-        st.caption("Diamond = second AI count. ⚑ = the two AI counts disagree; check these first.")
 
     # ------------------------------------------------------------------ species
     st.subheader("Species", anchor=False)
@@ -304,9 +306,10 @@ def page() -> None:
     with right:
         ann = rep.get("annotated_video")
         if ann and Path(ann).exists():
-            st.html('<p class="bs-choice">What the AI saw</p>')
+            st.html('<p class="bs-choice">What the AI saw</p><p class="bs-key"><span class="sw" style="background:#3CC850"></span>Named'
+                    '<span class="sw" style="background:#FFC800"></span>Not sure<span class="sw" style="background:#FF5000"></span>New'
+                    '<span class="sw" style="background:#A0A0A0"></span>Too murky</p>')
             st.video(str(ann))
-            st.caption("Green = named · yellow = not sure · red = new · grey = too murky")
 
     # ------------------------------------------------------------------ more
     with st.expander("Other formats and technical details", icon=":material/folder_open:"):

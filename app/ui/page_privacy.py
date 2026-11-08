@@ -25,7 +25,7 @@ def _streamlit_setting(key: str):
 def page() -> None:
     cfg = C.cfg()
     root = Path(cfg["_root"])
-    T.header("", "Privacy", "Your video never leaves this computer. Here's the proof.")
+    T.header("", "Privacy", "Your video never leaves this computer.")
 
     runs = C.list_runs()
     last = C.load_report(runs[0]) if runs else None

@@ -208,7 +208,7 @@ def page() -> None:
             ok = bool(C.reviewer())
             if not ok:
                 st.warning("Type your name in the sidebar to save.", icon=":material/badge:")
-            if st.button("Save and next", type="primary", icon=":material/check:", width="stretch", disabled=not ok,
+            if st.button("Save count", type="primary", icon=":material/check:", width="stretch", disabled=not ok,
                          key=f"save_{key}"):
                 spent = time.time() - st.session_state.pop(f"t0_{key}", time.time())
                 CC.save_check(db, rep["run_id"], sub["subsample_t_s"], ft, mode, C.reviewer(), ai_fish, ai_inv,
@@ -218,7 +218,7 @@ def page() -> None:
                     st.toast(f"AI {ai_fish}, you {int(human)}: {d:.0f}% apart "
                              f"({'OK' if d < CC.PCT_DIFF_LIMIT else 'over the 6% limit'})", icon=":material/check_circle:")
                 else:
-                    st.toast(f"Saved: {int(human)} fish", icon=":material/check_circle:")
+                    st.toast(f"Count saved: {int(human)} fish", icon=":material/check_circle:")
                 st.session_state["check_cursor"] = min(pick + 1, len(subs) - 1)
                 st.rerun()
         with left:
@@ -226,17 +226,18 @@ def page() -> None:
                 st.info("This frame isn't on this computer any more.")
             else:
                 shown = draw_marks(img, marks, set(removed), scale, invert) if mode == "assisted" else img
+                if mode == "assisted":
+                    present = {kind(m["label"], invert) for m in marks}
+                    st.html('<p class="bs-key">' + "".join(
+                        f'<span class="sw box" style="border-color:{KIND_SWATCH[k]}"></span>{T.esc(k)}'
+                        for k in KIND_SWATCH if k in present) + '<span class="x">✕</span>Removed</p>')
                 if mode == "assisted" and dmap is not None and st.toggle(
                         "Show where fish are likely", key=f"hm_{key}",
                         help="Blue glow from the second AI count. Helps you spot faint fish the boxes missed."):
                     shown = overlay_density(shown, dmap)
                 st.image(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB), width="stretch",
                          alt=f"Subsample frame at {C.fmt_t(ft)}" + (f" with {len(marks)} numbered AI marks" if mode == "assisted" else ""))
-                if mode == "assisted":
-                    present = {kind(m["label"], invert) for m in marks}
-                    st.html('<p class="bs-small">' + " · ".join(
-                        f'<span style="display:inline-block;width:10px;height:10px;border:2px solid {KIND_SWATCH[k]};'
-                        f'margin-right:4px"></span>{T.esc(k)}' for k in KIND_SWATCH if k in present) + " · grey ✕ removed</p>")
+
                 ctx = []
                 for dt_ in (-1.0, -0.5, 0.5, 1.0):
                     im = frame_image(cfg, rep, round(ft + dt_, 3), 320)

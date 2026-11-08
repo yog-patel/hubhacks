@@ -48,7 +48,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 1. Sidebar **Check counts**. Analysis = the 1280-1355s run; **Check the AI's marks**. The 21:20 subsample shows 82
    numbered marks (yellow = identified fish, orange = probable, blue = too murky).
 2. In **Remove a whole group** pick **Too murky · 19**: 19 marks are crossed out at once; *Your count*
-   drops to 63. Optionally remove a few more by number and add missed fish. **Save and next**.
+   drops to 63. Optionally remove a few more by number and add missed fish. **Save count**.
 3. The cards update: **MeanCount 63 with your checks · AI alone 82**. *Say:* the AI alone misses faint fish and marks
    some sand, so a person confirms each protocol frame; every correction is saved as training data
    (*Use my checks to improve the AI*).
@@ -98,7 +98,7 @@ Sidebar **Privacy**. Read it top to bottom:
 
 ## Optional: rejecting junk
 
-In the New animals, open an item that shows only the pole or sand → **Not an animal** (or press `X`) → re-run. It's excluded from counts, and similar flagged items are auto-rejected (`auto_rejected_tracks` in *Run details*).
+In the New animals, open an item that shows only the pole or sand → **Mark as not an animal** (or press `X`) → re-run. It's excluded from counts, and similar flagged items are auto-rejected (`auto_rejected_tracks` in *Run details*).
 
 ## After the demo
 

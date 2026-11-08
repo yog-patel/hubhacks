@@ -15,8 +15,8 @@ computer. Your video never leaves it, and it works with the internet off.**
 | Step | Page | What you do | Time |
 |---|---|---|---|
 | 1 | **Analyze** | Pick the video → **Standard** → **Analyze video**. Several videos? Open *Analyze several videos*. | 15–20 min per video (computer works, you don't) |
-| 2 | **Check counts** | For each of the 15 sample frames: remove boxes that aren't fish (or a whole category at once), add fish the AI missed → **Save and next**. | a few minutes |
-| 3 | **New animals** | For each unfamiliar animal: pick its name from the Nova Scotia list (**Add new species** / **Confirm species**) or **Not an animal**. Keys: N, E, X. | ~10 s per item |
+| 2 | **Check counts** | For each of the 15 sample frames: remove boxes that aren't fish (or a whole category at once), add fish the AI missed → **Save count**. | a few minutes |
+| 3 | **New animals** | For each unfamiliar animal: pick its name from the Nova Scotia list (**Add new species** / **Confirm species**) or **Mark as not an animal**. Keys: N, E, X. | ~10 s per item |
 | 4 | **Report** | Open **Survey details**: add water temperature, pole visibility, juveniles. Then **Download Excel report**. | 2 min |
 
 ## Reading the results

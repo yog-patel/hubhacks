@@ -51,7 +51,7 @@ def page() -> None:
     up_dir = path(cfg, "outputs_dir") / "uploads"
     vids += sorted(p for p in up_dir.glob("*") if p.suffix.lower() in VIDEO_EXTS) if up_dir.exists() else []
 
-    hero = st.container(border=True)     # filled below, after the upload box has had a chance to add a video
+    hero = st.container(border=True, key="hero")     # filled below, after the upload box has had a chance to add a video
     clarity = st.container()
     with st.expander("Add a video from this computer", icon=":material/upload:"):
         up = st.file_uploader("Add a video", type=[e.strip(".") for e in VIDEO_EXTS], label_visibility="collapsed",
@@ -203,12 +203,10 @@ def show_summary(rep: dict, secs: float | None) -> None:
     st.success(f"Done in {took}" + (f" · {ext} internet connections" if ext is not None else "") + " · nothing left this computer",
                icon=":material/check_circle:")
     pend = rep.get("review_items_packaged", rep.get("review_items", 0))
-    T.stats([
-        {"k": "fish per check point (average)", "v": f"{rep['MeanCount_total_fish']:.1f}", "tip": "Protocol MeanCount"},
-        {"k": "new animals to look at", "v": pend, "tone": "attn" if pend else "ok"},
-        {"k": "of the video too murky", "v": f"{100 * rep['visibility']['fraction_below_v_min']:.0f}", "unit": "%"},
-    ])
+    st.html(f'<p class="bs-summary">The AI counted an average of <b>{rep["MeanCount_total_fish"]:.1f} fish</b> per check point '
+            f'and found <b>{pend} animal{"s" if pend != 1 else ""}</b> it couldn\'t name. '
+            f'<b class="w">{100 * rep["visibility"]["fraction_below_v_min"]:.0f}%</b> of the video was too murky to name species.</p>')
     c1, c2, c3 = st.columns(3)
-    c1.page_link(C.PAGES["check"], label="Next: check the counts", icon=":material/arrow_forward:")
+    c1.page_link(C.PAGES["check"], label="Check the counts", icon=":material/rule:")
     c2.page_link(C.PAGES["review"], label="New animals", icon=":material/pets:")
     c3.page_link(C.PAGES["results"], label="Report", icon=":material/bar_chart:")
