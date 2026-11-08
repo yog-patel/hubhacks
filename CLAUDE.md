@@ -1,8 +1,8 @@
-# BlueSight AI — project guide for Claude Code
+# AquaLens AI — project guide for Claude Code
 
 See more. Disturb less. Protect better.
 
-BlueSight turns underwater survey video from Nova Scotia waters into fish counts, species IDs and flags for unfamiliar species, with a biologist reviewing anything uncertain. Built for Coastal Action (RBC HubHacks, Problem Statement 2).
+AquaLens turns underwater survey video from Nova Scotia waters into fish counts, species IDs and flags for unfamiliar species, with a biologist reviewing anything uncertain. Built for Coastal Action (RBC HubHacks, Problem Statement 2).
 
 Work autonomously. Only stop to ask if something is truly blocking; otherwise make a sensible assumption, record it in `DECISIONS.md`, and keep going.
 

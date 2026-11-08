@@ -1,4 +1,4 @@
-"""BlueSight AI: see more, disturb less, protect better.
+"""AquaLens AI: see more, disturb less, protect better.
 
 Importing this package switches every model library to offline mode BEFORE any of them is imported.
 ``huggingface_hub`` reads these variables once, at import time, so setting them later (for example in

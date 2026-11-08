@@ -66,7 +66,7 @@ def ai_counts_for(dets: list[dict], points: list[float], window: float) -> dict[
 def page() -> None:
     cfg = C.cfg()
     T.header("Step 2b · AI-assisted count", "Verify counts",
-             "BlueSight pre-marks the fish it counted on each protocol subsample frame. Click a fish it missed to add it, "
+             "AquaLens pre-marks the fish it counted on each protocol subsample frame. Click a fish it missed to add it, "
              "click a wrong mark to remove it, then save. The verified count goes into the report.")
     runs = C.list_runs()
     if not runs:
@@ -161,7 +161,7 @@ def page() -> None:
         return
 
     T.section("This frame", hint=f"video time {C.fmt_t(frame_t)} ({frame_t:.2f} s)")
-    cs = [{"k": "Count", "v": s.final_count, "tone": "info", "d": f"BlueSight pre-marked {s.ai_count}"},
+    cs = [{"k": "Count", "v": s.final_count, "tone": "info", "d": f"AquaLens pre-marked {s.ai_count}"},
           {"k": "Your corrections", "v": f"+{s.added} / −{len(s.removed_ai)}", "tone": "attn" if (s.added or s.removed_ai) else "",
            "d": "fish added / wrong marks removed"}]
     if ref is not None:
@@ -178,7 +178,7 @@ def page() -> None:
     if b1.button("Undo removal", icon=":material/undo:", disabled=not s.removed_ai, width="stretch"):
         A.undo_remove(s)
         st.rerun()
-    if b2.button("Reset", icon=":material/restart_alt:", width="stretch", help="Back to BlueSight's marks"):
+    if b2.button("Reset", icon=":material/restart_alt:", width="stretch", help="Back to AquaLens's marks"):
         st.session_state.pop(skey, None)
         st.rerun()
     who = C.reviewer()
@@ -206,7 +206,7 @@ def page() -> None:
     click = streamlit_image_coordinates(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB), width="stretch",
                                         key=f"assist_img_{run_id}_{point}_{region}", cursor="crosshair",
                                         image_format="JPEG", jpeg_quality=92)
-    st.caption("Cyan ring = counted by BlueSight · magenta ring with a dot = added by you. "
+    st.caption("Cyan ring = counted by AquaLens · magenta ring with a dot = added by you. "
                "Click empty water where you see a fish to add it; click a ring to remove it."
                + ("" if who else " Type your name in the sidebar to save."))
     if click and click.get("unix_time") != st.session_state.get(skey + "_last"):

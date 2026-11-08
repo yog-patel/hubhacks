@@ -5,7 +5,7 @@
     python scripts/screenshot_app.py --out outputs/screenshots/before --nav radio   # the v1 app (sidebar radio)
 
 Only connects to the local app (default http://localhost:8501). Playwright and its headless Chromium are
-development tools; BlueSight itself never needs them.
+development tools; AquaLens itself never needs them.
 """
 from __future__ import annotations
 

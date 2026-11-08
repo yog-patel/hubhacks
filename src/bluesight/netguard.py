@@ -1,6 +1,6 @@
 """Network guard: counts (and by default blocks) every outbound network connection made while it is active.
 
-BlueSight never needs the internet after the one-time model download. During every pipeline run this guard patches
+AquaLens never needs the internet after the one-time model download. During every pipeline run this guard patches
 ``socket.socket.connect`` / ``connect_ex`` and ``socket.getaddrinfo`` (DNS) so that
 
 * connections to this computer (127.0.0.0/8, ::1, ``localhost``, Unix sockets) are allowed, and
@@ -119,7 +119,7 @@ def _install() -> None:
                 g.local_connections += 1
             return _orig["connect"](self, address)
         if _record("connect", host, port):
-            raise ConnectionRefusedError(f"BlueSight network guard blocked an outbound connection to {host}:{port}")
+            raise ConnectionRefusedError(f"AquaLens network guard blocked an outbound connection to {host}:{port}")
         return _orig["connect"](self, address)
 
     def connect_ex(self, address):  # noqa: ANN001
@@ -134,7 +134,7 @@ def _install() -> None:
 
     def getaddrinfo(host, port, *a, **k):  # noqa: ANN001
         if not is_local(host) and _record("dns", host, port):
-            raise socket.gaierror(socket.EAI_NONAME, f"BlueSight network guard blocked a DNS lookup of {host}")
+            raise socket.gaierror(socket.EAI_NONAME, f"AquaLens network guard blocked a DNS lookup of {host}")
         return _orig["getaddrinfo"](host, port, *a, **k)
 
     socket.socket.connect = connect

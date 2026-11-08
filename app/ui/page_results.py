@@ -200,10 +200,10 @@ def page() -> None:
         ai_same = [by_t[float(v["subsample_t_s"])]["total_fish_count"] + by_t[float(v["subsample_t_s"])].get("invertebrate_count", 0)
                    for v in vdone]  # marks include invertebrates, so compare with fish + invertebrates
         st.success(f"**Biologist-verified:** {len(vdone)} of {len(pts)} subsamples. Verified MeanCount "
-                   f"**{np.mean([v['final_count'] for v in vdone]):.1f}** organisms per subsample (BlueSight alone on the same "
+                   f"**{np.mean([v['final_count'] for v in vdone]):.1f}** organisms per subsample (AquaLens alone on the same "
                    f"frames: {np.mean(ai_same):.1f}). The CSV download includes the verified counts.", icon=":material/verified:")
     else:
-        st.info("In our tests BlueSight found about half of the faint fish a biologist counts (EVALUATION.md). For an exact "
+        st.info("In our tests AquaLens found about half of the faint fish a biologist counts (EVALUATION.md). For an exact "
                 "protocol count, check its marks on the subsample frames in **Verify counts**.", icon=":material/ads_click:")
     st.page_link(C.PAGES["assisted"], label="Verify counts", icon=":material/ads_click:")
 

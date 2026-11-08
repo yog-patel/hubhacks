@@ -123,7 +123,7 @@ def local_badge(compact: bool = False) -> str:
 
 
 def sidebar() -> None:
-    """Reviewer name, data source, the local-device indicator and a theme hint."""
+    """Reviewer name, data source, and the local-device indicator."""
     qp = st.query_params
     if "reviewer" not in st.session_state:
         st.session_state["reviewer"] = qp.get("reviewer", "")
@@ -134,5 +134,3 @@ def sidebar() -> None:
                  help="Mock data is a small fake dataset for trying the app without running the models "
                       "(create it with scripts/make_mock_data.py).")
         st.html(local_badge(compact=True))
-        st.html('<p class="bs-side-foot">Light or dark: <b>⋮ menu → Settings</b> (top right). '
-                'Follows your computer by default.</p>')

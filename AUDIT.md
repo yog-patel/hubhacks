@@ -1,6 +1,6 @@
 # AUDIT (v1, before the v2 work)
 
-Audit of BlueSight v1 (commit `d31133e`) done on 2026-11-07, before any v2 change. Screenshots of every v1 page are in
+Audit of AquaLens v1 (commit `d31133e`) done on 2026-11-07, before any v2 change. Screenshots of every v1 page are in
 `outputs/screenshots/before/`. Baseline numbers come from `scripts/evaluate.py` re-run on this machine (Apple M5, MPS);
 they reproduce v1's EVALUATION.md exactly (see EVALUATION.md → BASELINE).
 

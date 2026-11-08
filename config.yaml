@@ -1,4 +1,4 @@
-# BlueSight AI configuration. Every path, threshold, rate and model name lives here.
+# AquaLens AI configuration. Every path, threshold, rate and model name lives here.
 # Paths are relative to the project root.
 
 paths:

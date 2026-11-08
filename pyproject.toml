@@ -1,7 +1,7 @@
 [project]
 name = "bluesight"
 version = "0.1.0"
-description = "BlueSight AI: local fish detection, counting and unfamiliar-species flagging for Coastal Action"
+description = "AquaLens AI: local fish detection, counting and unfamiliar-species flagging for Coastal Action"
 requires-python = ">=3.11,<3.12"
 
 [build-system]

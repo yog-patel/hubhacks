@@ -1,4 +1,4 @@
-"""Inventory of every model BlueSight can use: name, version (revision), source, licence, local path, size, SHA-256.
+"""Inventory of every model AquaLens can use: name, version (revision), source, licence, local path, size, SHA-256.
 
     python scripts/model_inventory.py      # -> outputs/model_inventory.json (+ prints a markdown table)
 
@@ -62,7 +62,7 @@ def main() -> None:
         })
         print(f"hashed {mid}")
     algos = [
-        {"name": "BlueSight motion detector", "role": "Fish detector (default)", "version": cfg["detector"]["motion"] and
+        {"name": "AquaLens motion detector", "role": "Fish detector (default)", "version": cfg["detector"]["motion"] and
          f"z={cfg['detector']['motion']['z_thresh']}, window ±{cfg['detector']['motion']['window_s']} s",
          "licence": "project code", "loaded_by": "bluesight.detect (OpenCV + PyTorch median)", "runs_on": "GPU (MPS/CUDA) or CPU",
          "local_path": "src/bluesight/detect.py", "weights": "none (no neural network)"},

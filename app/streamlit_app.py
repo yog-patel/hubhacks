@@ -1,4 +1,4 @@
-"""BlueSight AI - Streamlit app.   Run:  streamlit run app/streamlit_app.py
+"""AquaLens AI - Streamlit app.   Run:  streamlit run app/streamlit_app.py
 
 Pages: Analyze, Results, Verify counts, Review queue, Species registry, Model & privacy. Everything runs on this computer.
 UI code lives in app/ui/ (design tokens in app/ui/theme.py); the pipeline lives in src/bluesight/.
@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "app"))   # ui package
 import bluesight  # noqa: E402,F401  (must come first: switches Hugging Face to offline mode)
 import streamlit as st  # noqa: E402
 
-st.set_page_config(page_title="BlueSight AI", page_icon=":material/water:", layout="wide",
+st.set_page_config(page_title="AquaLens AI", page_icon=":material/water:", layout="wide",
                    initial_sidebar_state="expanded")
 
 from ui import common as C  # noqa: E402

@@ -1,6 +1,6 @@
 # DECISIONS
 
-Assumptions, overrides from Coastal Action's protocol, and judgment calls made while building BlueSight. Each entry says what was decided and why.
+Assumptions, overrides from Coastal Action's protocol, and judgment calls made while building AquaLens. Each entry says what was decided and why.
 
 ## D1. Tooling on this machine
 * This Mac has **no Python and no Xcode command-line tools**, so `/usr/bin/git` and `/usr/bin/python3` are only install stubs. Python 3.11.18 was installed with **uv** (standalone, no sudo) into `.venv/`.
@@ -15,7 +15,7 @@ Assumptions, overrides from Coastal Action's protocol, and judgment calls made w
 | Subsampling | MeanCount over all sampled frames | **one subsample every 60 s (15 per 15 min)**. The count at a point is the sampled frame within **±0.5 s** with the most fish ("one second = one analysed frame"; fish visible within ~0.5 s may be counted). MeanCount over all 2-fps frames is also reported, labelled separately. |
 | What is counted | every detection | only organisms recognisable by **≥2 cues (shape + swimming behaviour)**. Detections that never move consistently for `MIN_FRAMES` samples are **transient and not counted**. Their number per frame is reported. |
 | Columns | species | species columns, **"Unknown/Unable to ID due to visibility"** (the protocol's own column), total fish count, **invertebrate count** (crabs/shrimp via `invertebrate_species`), visibility per subsample |
-| Visibility | 0–1 score | The protocol uses metre categories from 2–3 human observers and a visibility pole. BlueSight cannot measure metres, so it reports its **0–1 visibility score per subsample** and the share of footage below V_MIN. It does not claim metre categories. |
+| Visibility | 0–1 score | The protocol uses metre categories from 2–3 human observers and a visibility pole. AquaLens cannot measure metres, so it reports its **0–1 visibility score per subsample** and the share of footage below V_MIN. It does not claim metre categories. |
 
 The protocol has an older draft section (12-min windows, 60 points). The current procedure (15 min, 15 frames) is used.
 
@@ -133,13 +133,13 @@ Rule applied: keep a change only if it measurably helps on tuning data (tuning h
 
 ## D22. Local verification design
 * **Offline env in `bluesight/__init__.py`**, not only in `load_config()`, because `huggingface_hub` reads `HF_HUB_OFFLINE` at import time. `BLUESIGHT_ALLOW_DOWNLOADS=1` is the explicit, documented way to do the one-time download.
-* **Network guard (`bluesight/netguard.py`)**: patches `socket.connect`, `connect_ex` and `getaddrinfo` for the duration of each run. Loopback and Unix sockets are allowed; anything else is recorded and, in `block` mode (default), refused. It's in-process: it covers every library BlueSight uses, but not other programs (the Wi-Fi-off test covers those). The count is stored in each `report.json` and drives the Model & privacy indicator.
+* **Network guard (`bluesight/netguard.py`)**: patches `socket.connect`, `connect_ex` and `getaddrinfo` for the duration of each run. Loopback and Unix sockets are allowed; anything else is recorded and, in `block` mode (default), refused. It's in-process: it covers every library AquaLens uses, but not other programs (the Wi-Fi-off test covers those). The count is stored in each `report.json` and drives the Model & privacy indicator.
 * **The offline test patches sockets itself**, so the guard isn't the only thing checking the guard.
 * **Energy:** CodeCarbon `OfflineEmissionsTracker` (MIT), Nova Scotia grid. On Apple Silicon without root it can only estimate CPU power from load plus a RAM model, and it can't see the Apple GPU, so the numbers are labelled estimates and lower bounds everywhere.
 * **Streamlit:** `gatherUsageStats=false`, `server.address=localhost`, `toolbarMode=minimal` (hides "Deploy"), system fonts only.
 
 ## D23. Accessibility: what is and isn't covered
-An automated pass with Playwright on every page found no images without alt text, no unlabelled inputs and no unnamed buttons. All BlueSight buttons are ≥ 44 px tall, and no text below 4.5:1 after the fixes. Two things are left:
+An automated pass with Playwright on every page found no images without alt text, no unlabelled inputs and no unnamed buttons. All AquaLens buttons are ≥ 44 px tall, and no text below 4.5:1 after the fixes. Two things are left:
 * Streamlit's built-in icon buttons (help "?", table toolbar, fullscreen) are 16–24 px. That meets WCAG 2.2's 24 px minimum for most of them, with spacing for the help icons, and can't be resized without patching Streamlit.
 * Data tables are drawn on a canvas by Streamlit's grid component. It has its own keyboard navigation, but screen-reader support is limited. The CSV download and the "Show this chart as a table" views are the accessible fallback.
 * Not tested: real screen readers (VoiceOver/NVDA) and 200% zoom. Both are recommended before production use.
@@ -163,8 +163,16 @@ Coastal Action's PC has a 12 GB NVIDIA GPU (team plan), so larger models would f
 
 ## D27. AI-assisted counting is the answer to under-counting
 
-About half of the fish the biologists counted are only recognisable in motion (E9), so no still-image or motion-threshold change reaches the manual count. The **Verify counts** page lets a biologist correct BlueSight's marks on each protocol subsample frame (click empty water to add a fish, click a ring to remove one). The pre-marked frame is the one the protocol count uses (busiest sampled frame within ±0.5 s). Verified counts are stored in `assisted_counts` (SQLite), shown on Results, added to the subsample CSV (`verified_total_count`, `verified_by`), and exported with the frame as point labels in `outputs/training/assisted/` for FishSpotter retraining. Extra moments (for example 22:00, where the biologists counted 102) can be verified for comparison but are not added to the protocol MeanCount. Marks include invertebrates, so the Results page compares them with fish + invertebrates. `reset_demo.py` clears the demo window's verified counts. Dependency added: `streamlit-image-coordinates` 0.4.1 (MIT; 0.1.9 is incompatible with Streamlit 1.67).
+About half of the fish the biologists counted are only recognisable in motion (E9), so no still-image or motion-threshold change reaches the manual count. The **Verify counts** page lets a biologist correct AquaLens's marks on each protocol subsample frame (click empty water to add a fish, click a ring to remove one). The pre-marked frame is the one the protocol count uses (busiest sampled frame within ±0.5 s). Verified counts are stored in `assisted_counts` (SQLite), shown on Results, added to the subsample CSV (`verified_total_count`, `verified_by`), and exported with the frame as point labels in `outputs/training/assisted/` for FishSpotter retraining. Extra moments (for example 22:00, where the biologists counted 102) can be verified for comparison but are not added to the protocol MeanCount. Marks include invertebrates, so the Results page compares them with fish + invertebrates. `reset_demo.py` clears the demo window's verified counts. Dependency added: `streamlit-image-coordinates` 0.4.1 (MIT; 0.1.9 is incompatible with Streamlit 1.67).
 
 ## D28. Invasive species watch list
 
 `watch_list` in config.yaml is a starter list of aquatic invasive species reported in Nova Scotia coastal waters (European green crab, four tunicates, oyster thief). It is marked in the config as a list for staff to check against DFO's and Coastal Action's current lists; nothing is fetched online. Matching ignores case, spaces, underscores and hyphens, and accepts the common name, scientific name or an alias. Alerts appear (1) in the Review queue right after a reviewer approves a watch-list species, (2) on Analyze and Results whenever a run recognises one (tracks with status `known`), and (3) as an "Invasive · watch list" badge on the registry card. The alert's first/last-seen times come from all recognised tracks, so they include any loose-prototype false matches (EVALUATION.md §5b). The plan's water-temperature and "outside its usual range" items were not built: they need a cited range table, and inventing one would break the "never invent results" rule.
+
+## D29. Product renamed to AquaLens AI
+
+The product is now called **AquaLens AI** everywhere people see it (app, logo, documents, reports). Internal identifiers
+keep the old name so existing installs, caches and scripts keep working: the Python package `src/bluesight/`, the
+database `outputs/bluesight.db`, the `BLUESIGHT_ALLOW_DOWNLOADS` environment variable and evaluation JSON keys.
+The sidebar's light/dark theme hint was removed at the team's request (the theme still follows the computer and can be
+changed in Streamlit's settings menu).

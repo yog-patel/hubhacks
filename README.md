@@ -1,8 +1,8 @@
-# BlueSight AI
+# AquaLens AI
 
 **See more. Disturb less. Protect better.**
 
-BlueSight turns underwater survey video from Nova Scotia waters into fish counts and flags fish that don't match any known species, with a biologist reviewing anything uncertain. It was built for Coastal Action (RBC HubHacks, Problem Statement 2).
+AquaLens turns underwater survey video from Nova Scotia waters into fish counts and flags fish that don't match any known species, with a biologist reviewing anything uncertain. It was built for Coastal Action (RBC HubHacks, Problem Statement 2).
 
 ```
 Upload video → Enhance frames → Detect and track → Identify species
@@ -101,7 +101,7 @@ Project documents: [RESOURCES.md](RESOURCES.md) · [DECISIONS.md](DECISIONS.md) 
 | Embedder (default) | BioCLIP `imageomics/bioclip` via `open_clip` | MIT (weights and code) |
 | Embedder (fallback) | DINOv2-small `facebook/dinov2-small` | Apache-2.0 |
 | Detector (optional) | OWLv2 `google/owlv2-base-patch16-ensemble` (and `-large-patch14`, experiments only) via `transformers` | Apache-2.0 |
-| Detector (default) | BlueSight motion detector (OpenCV + PyTorch median) | project code |
+| Detector (default) | AquaLens motion detector (OpenCV + PyTorch median) | project code |
 | Tracker | ByteTrack via `supervision` 0.26.1 | MIT |
 | Energy estimate | CodeCarbon `OfflineEmissionsTracker` | MIT |
 | App | Streamlit (Apache-2.0), Altair/Vega-Lite (BSD-3) | permissive |
@@ -109,7 +109,7 @@ Project documents: [RESOURCES.md](RESOURCES.md) · [DECISIONS.md](DECISIONS.md) 
 | Video encoding | PyAV (BSD-3) bundling FFmpeg (LGPL). Uses Apple's `h264_videotoolbox` hardware encoder | LGPL |
 | Screenshots (dev only) | Playwright (Apache-2.0) | permissive |
 
-**GPL note:** PyAV's bundled FFmpeg also contains **libx264 (GPL-2.0)**. BlueSight uses it only as a fallback encoder when the hardware encoder is unavailable. If you redistribute BlueSight binaries, either keep the hardware encoder or ship an FFmpeg build without libx264. No AGPL dependencies are used.
+**GPL note:** PyAV's bundled FFmpeg also contains **libx264 (GPL-2.0)**. AquaLens uses it only as a fallback encoder when the hardware encoder is unavailable. If you redistribute AquaLens binaries, either keep the hardware encoder or ship an FFmpeg build without libx264. No AGPL dependencies are used.
 
 ## Energy footprint
 
@@ -117,4 +117,4 @@ Small models only (BioCLIP ViT-B/16; a motion detector without a neural network)
 
 ## Offline
 
-After the one-time model download, BlueSight makes no network calls. `bluesight/__init__.py` sets `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1` and `HF_HUB_DISABLE_TELEMETRY=1` before any model library loads (set `BLUESIGHT_ALLOW_DOWNLOADS=1` only for the download). The app binds to `localhost` and sends no usage statistics. To check it yourself, turn Wi-Fi off and run the app, or run `python -m pytest tests/test_offline.py -s`. Details: [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md).
+After the one-time model download, AquaLens makes no network calls. `bluesight/__init__.py` sets `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1` and `HF_HUB_DISABLE_TELEMETRY=1` before any model library loads (set `BLUESIGHT_ALLOW_DOWNLOADS=1` only for the download). The app binds to `localhost` and sends no usage statistics. To check it yourself, turn Wi-Fi off and run the app, or run `python -m pytest tests/test_offline.py -s`. Details: [LOCAL_VERIFICATION.md](LOCAL_VERIFICATION.md).

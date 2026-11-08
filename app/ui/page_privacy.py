@@ -1,4 +1,4 @@
-"""Model & privacy: proof, from live data, that BlueSight runs on this computer and sends nothing out."""
+"""Model & privacy: proof, from live data, that AquaLens runs on this computer and sends nothing out."""
 from __future__ import annotations
 
 import json
@@ -26,7 +26,7 @@ def page() -> None:
     cfg = C.cfg()
     root = Path(cfg["_root"])
     T.header("Trust", "Model & privacy",
-             "Everything BlueSight does happens on this computer. The AI models are files on this disk, the video is "
+             "Everything AquaLens does happens on this computer. The AI models are files on this disk, the video is "
              "never uploaded, and the pipeline counts every attempt to reach the internet. This page shows the evidence.")
 
     runs = C.list_runs()
@@ -96,7 +96,7 @@ def page() -> None:
     st.html("""<ol class="bs-how">
 <li>The video is read straight from this computer's disk with OpenCV. It is never uploaded.</li>
 <li>The AI models (BioCLIP for species, the motion detector for fish) are files in <code>models/</code>, downloaded once.
-    BlueSight switches Hugging Face to offline mode before any model library loads, so they can't check for updates.</li>
+    AquaLens switches Hugging Face to offline mode before any model library loads, so they can't check for updates.</li>
 <li>All processing runs on this computer's GPU or CPU. Results go to <code>outputs/</code> and a local SQLite database.</li>
 <li>During every analysis a <b>network guard</b> watches every outgoing connection. Connections to this computer are allowed;
     anything else is blocked and counted. The count is shown above.</li>

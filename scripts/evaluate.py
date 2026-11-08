@@ -1,4 +1,4 @@
-"""Measure BlueSight and write EVALUATION.md (measured numbers only).
+"""Measure AquaLens and write EVALUATION.md (measured numbers only).
 
     python scripts/evaluate.py --tune     # tune T_KNOWN / T_UNKNOWN / V_MIN, save to config.yaml, then evaluate
     python scripts/evaluate.py            # evaluate with the current config
@@ -294,14 +294,14 @@ def write_markdown(r: dict, vtab: pd.DataFrame | None, cfg: dict) -> None:
           "on the GPU (Apple MPS). Re-runs reuse cached detections and embeddings, so only identification, counting, evidence and reporting repeat.", "",
           "## 2. Count accuracy against the manual counts", "",
           "The manual counts are the biologists' gridded screenshots of this video (`data/ground_truth/manual_counts.csv`). "
-          "BlueSight's count is the protocol-style count at that subsample point: the sampled frame within ±0.5 s holding the most counted fish. "
+          "AquaLens's count is the protocol-style count at that subsample point: the sampled frame within ±0.5 s holding the most counted fish. "
           "Transient detections (no consistent movement over MIN_FRAMES samples) are not counted.", "",
-          "| Time | Half | Manual fish | BlueSight counted fish | Raw detections in frame | % difference (protocol QC metric) | Manual invertebrates | BlueSight invertebrates |",
+          "| Time | Half | Manual fish | AquaLens counted fish | Raw detections in frame | % difference (protocol QC metric) | Manual invertebrates | AquaLens invertebrates |",
           "|---|---|---|---|---|---|---|---|"]
     for c in r["counts"]:
         L.append(f"| {c['time']} | {c['half']} | {c['manual_fish']} | {c['bluesight_counted_fish']} | {c['raw_detections']} | "
                  f"{c['pct_difference']} % | {c['manual_invertebrates']} | {c['bluesight_invertebrates']} |")
-    L += ["", "The protocol's QC requires counts within 6% for two human counters. **BlueSight does not meet that bar.** "
+    L += ["", "The protocol's QC requires counts within 6% for two human counters. **AquaLens does not meet that bar.** "
           "It is a pre-screen that ranks footage and flags items; it does not replace the manual count.", ""]
     if r["detectors"]:
         L += ["### Detector comparison on the ground-truth frames", "",

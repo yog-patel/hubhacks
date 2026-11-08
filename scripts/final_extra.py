@@ -96,7 +96,7 @@ def what_improved(x: dict) -> list[str]:
         f"14:01 (tuning half): {b14.get('bluesight_counted_fish')} → {f14.get('bluesight_counted_fish')} of 36. "
         f"22:00 (demo half, checked once afterwards): {b22.get('bluesight_counted_fish')} → **{f22.get('bluesight_counted_fish')}** of 102. "
         "A count at a single instant is dominated by which video frame happens to be sampled: one frame (33 ms) later, the detector "
-        "found 17 instead of 27 objects at 14:01. BlueSight remains a pre-screen; it doesn't replace the manual count.",
+        "found 17 instead of 27 objects at 14:01. AquaLens remains a pre-screen; it doesn't replace the manual count.",
         f"5. **Two tempting 'improvements' were rejected because they failed on real video.** Enhancing crops and using several "
         f"prototypes per species both looked much better on the screenshot photos, but those photos separate known from held-out "
         f"partly by background (pale water vs sandy seabed). On video tracks, enhanced crops dropped fish-vs-non-fish separation to "

@@ -45,7 +45,7 @@ def stage_of(frac: float, msg: str) -> tuple[set[int], set[int]]:
 def page() -> None:
     cfg = C.cfg()
     T.header("Step 1 of 3 · Analyze", "Analyze a survey video",
-             "Choose a video, check how clear the water is, then run it. BlueSight finds and follows each fish, matches it "
+             "Choose a video, check how clear the water is, then run it. AquaLens finds and follows each fish, matches it "
              "against the species registry and counts it with Coastal Action's protocol. Anything it's unsure about "
              "goes to your review queue.", step=1)
 
@@ -69,7 +69,7 @@ def page() -> None:
                 vids.append(dest)
         if not vids:
             T.empty_state("No survey videos yet",
-                          "BlueSight looks for videos in <code>data/videos/</code>. None were found.",
+                          "AquaLens looks for videos in <code>data/videos/</code>. None were found.",
                           "Drop a video above, or add one to the project folder and run "
                           "<code>python scripts/prepare_resources.py</code>.")
             return
@@ -89,7 +89,7 @@ def page() -> None:
     # ------------------------------------------------------------------ enhancement preview
     with st.container(border=True):
         T.section("Check the water clarity", "2", "optional")
-        st.caption("Pick a moment in the video. BlueSight corrects the green cast and boosts local contrast before looking "
+        st.caption("Pick a moment in the video. AquaLens corrects the green cast and boosts local contrast before looking "
                    "for fish, and scores visibility from 0 (opaque) to 1 (clear).")
         vmin = float(cfg["identify"]["V_MIN"])
         t = st.slider("Preview moment (seconds into the video)", 0.0, float(max(1.0, info.duration_s - 1)),

@@ -1,4 +1,4 @@
-"""Scan BlueSight's own code and requirements for anything that could reach the internet.
+"""Scan AquaLens's own code and requirements for anything that could reach the internet.
 
     python scripts/scan_network.py        # -> outputs/eval/network_scan.json and a summary on stdout
 

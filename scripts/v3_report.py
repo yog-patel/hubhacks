@@ -108,14 +108,14 @@ def assisted() -> list[str]:
         except sqlite3.OperationalError:
             rows = []
     L = ["### AI-assisted counting (Verify counts page)", "",
-         "Because no automatic detector finds the faint fish (E9, E10), the protocol count now has a human-in-the-loop step: BlueSight "
+         "Because no automatic detector finds the faint fish (E9, E10), the protocol count now has a human-in-the-loop step: AquaLens "
          "pre-marks every fish it counted on each subsample frame, and the biologist clicks to add a missed fish or remove a wrong mark. "
          "The verified count is exact by construction, the time per frame is measured, and every correction is saved as point labels "
          "(`outputs/training/assisted/`) to retrain FishSpotter on this footage.", ""]
     if not rows:
         L += ["_No verified frames saved yet on this computer, so there is no measured time per frame to report._", ""]
         return L
-    L += ["| Analysis | Moment | BlueSight marks | Removed | Added | Verified count | Seconds | Reviewer |", "|---|---|---|---|---|---|---|---|"]
+    L += ["| Analysis | Moment | AquaLens marks | Removed | Added | Verified count | Seconds | Reviewer |", "|---|---|---|---|---|---|---|---|"]
     for r in rows:
         t = r["subsample_t_s"]
         L.append(f"| {r['run_id']} | {int(t // 60)}:{int(t % 60):02d} | {r['ai_count']} | {r['removed']} | {r['added']} | "

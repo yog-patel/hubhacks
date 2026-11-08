@@ -1,8 +1,8 @@
-"""BlueSight design system: tokens, global CSS and small HTML components.
+"""AquaLens design system: tokens, global CSS and small HTML components.
 
 Light and dark mode
     Streamlit draws its own widgets from `.streamlit/config.toml` ([theme.light] / [theme.dark]) and sets
-    `color-scheme` on the app root. Every BlueSight token below is written with CSS `light-dark()`, so custom
+    `color-scheme` on the app root. Every AquaLens token below is written with CSS `light-dark()`, so custom
     components switch together with Streamlit's widgets, with no JavaScript and no rerun.
 
 Tokens (text colours >= 4.5:1 on every surface they sit on, in both modes; see DECISIONS.md D24)

@@ -1,4 +1,4 @@
-# DEMO: BlueSight AI (about 8 minutes)
+# DEMO: AquaLens AI (about 8 minutes)
 
 **Video:** `T1-STAT2 411.MP4` (T1-STAT2, 10 Sept 2025, 35:47, 4K)
 **Demo window:** **21:20 → 22:35** (start **1280 s**, length **75 s**), in the demo half of the video, which was never used for tuning.
@@ -40,9 +40,9 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 ## 2b. AI-assisted counting closes the gap to the biologists' count (~1½ min)
 
 1. Sidebar **Verify counts**. Open **Verify another moment**: the time is already **1320** (22:00, the instant the biologists counted by hand). Click **Add moment**.
-2. Three cards: **Count 57** (BlueSight pre-marked 57), **Your corrections +0 / −0**, and **Biologists' hand count 102** (fish + 1 invertebrate).
-   *Say:* "We measured it: no automatic detector, ours or a bigger one we trained, finds these faint fish reliably. About half are only visible in motion (EVALUATION.md, v3 section). So instead of pretending, BlueSight pre-marks what it's sure of and the biologist finishes the count."
-3. **Zoom → Top centre** (or another ninth with fish). Click 3–4 faint fish BlueSight missed: magenta rings appear and **Count** goes up. Click a cyan ring on sand to remove it. **Save verified count**.
+2. Three cards: **Count 57** (AquaLens pre-marked 57), **Your corrections +0 / −0**, and **Biologists' hand count 102** (fish + 1 invertebrate).
+   *Say:* "We measured it: no automatic detector, ours or a bigger one we trained, finds these faint fish reliably. About half are only visible in motion (EVALUATION.md, v3 section). So instead of pretending, AquaLens pre-marks what it's sure of and the biologist finishes the count."
+3. **Zoom → Top centre** (or another ninth with fish). Click 3–4 faint fish AquaLens missed: magenta rings appear and **Count** goes up. Click a cyan ring on sand to remove it. **Save verified count**.
 4. *Say:* "Every click is saved as a training label for this footage, and the time per frame is measured, which gives us the staff-time number." (Extra moments are saved but not added to the protocol MeanCount; verifying the **21:20** subsample does change it, and Results then shows a green *Biologist-verified* banner.)
 
 ## 3. A held-out species is flagged as unfamiliar instead of mislabelled (~1 min)
@@ -50,7 +50,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 1. Sidebar **Review queue**. *Show items from* is the 1280-1355s analysis; the counter reads **0 of 17 reviewed**.
 2. Item 1: red **! Unfamiliar** badge, **Possibly a species not in the registry**, **21:32–21:48**. Play the **evidence clip**: the crab is boxed in orange. **Best views of this fish** shows the crab.
    **Closest registry matches**: *Small schooling fish* **0.45 · no match**, well left of both threshold marks (0.68 and 0.77).
-   *Say:* the only registry species is the schooling fish. The crab was deliberately held out, and BlueSight says "I don't know this" instead of calling it a fish.
+   *Say:* the only registry species is the schooling fish. The crab was deliberately held out, and AquaLens says "I don't know this" instead of calling it a fish.
 
 ## 4. Approve it, and see it in the registry (~45 s)
 
@@ -68,7 +68,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 ## 6. How we know it's local (30 seconds, Model & privacy page)
 
 Sidebar **Model & privacy**. Read it top to bottom:
-1. **Green banner: "0 external network calls during the last run."** This is not a slogan. During every analysis BlueSight's network guard watches every outgoing connection; anything that isn't to this computer would be blocked and counted. This number comes from the run you just did.
+1. **Green banner: "0 external network calls during the last run."** This is not a slogan. During every analysis AquaLens's network guard watches every outgoing connection; anything that isn't to this computer would be blocked and counted. This number comes from the run you just did.
 2. **Cards:** *Compute device: Apple GPU*, **Offline mode: On** (the model libraries are switched to offline before they load), **App telemetry: Off** (and the app is only reachable from this computer), and the last run's runtime with its **energy estimate** in Wh and grams of CO2.
 3. **AI models on this computer:** BioCLIP (MIT), OWLv2 (Apache-2.0, optional), DINOv2 (Apache-2.0, fallback): version, licence, and the **folder on this disk** each one is loaded from, with its SHA-256 fingerprint.
 4. *Say:* "Wi-Fi has been off the whole time. There's also an automated test that runs the whole analysis with the internet blocked, and the full evidence is in LOCAL_VERIFICATION.md."
@@ -120,4 +120,4 @@ Set up from scratch (README quick start), then `scripts/demo_check.py`: **13/13 
 
 ### Re-check after the v3 additions (Apple M2, 2026-11-08)
 
-`scripts/demo_check.py` now also checks step 2b (22:00: BlueSight 57 marks vs the biologists' 102; a click adds a fish, 57 → 58) and the watch-list alerts (after approval, and on Results after the re-run): **17/17 checks passed**. Re-run after approval: 51 s.
+`scripts/demo_check.py` now also checks step 2b (22:00: AquaLens 57 marks vs the biologists' 102; a click adds a fish, 57 → 58) and the watch-list alerts (after approval, and on Results after the re-run): **17/17 checks passed**. Re-run after approval: 51 s.

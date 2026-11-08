@@ -13,13 +13,13 @@ def page() -> None:
     cfg = C.cfg()
     db = C.db()
     T.header("Reference library", "Species registry",
-             "The species BlueSight can recognise. Each one is described by the average of its reference images, so adding "
+             "The species AquaLens can recognise. Each one is described by the average of its reference images, so adding "
              "images in the review queue takes effect immediately. Nothing is retrained.")
     rows = C.registry(read_only=True).list_species()
     held = cfg.get("held_out_species") or []
     if not rows:
         T.empty_state("The registry is empty",
-                      "BlueSight can't recognise any species yet, so every fish will go to the review queue.",
+                      "AquaLens can't recognise any species yet, so every fish will go to the review queue.",
                       "Build it from the labelled photos with <code>python scripts/build_registry.py</code>, or approve a "
                       "species in the review queue.")
         return

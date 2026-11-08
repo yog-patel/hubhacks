@@ -1,2 +1,2 @@
-# development only (not needed to run BlueSight)
+# development only (not needed to run AquaLens)
 playwright>=1.64   # screenshots of the app (scripts/screenshot_app.py); Apache-2.0

@@ -44,7 +44,7 @@ def show_watch_alert() -> None:
     if not e:
         return
     T.alert(f"{e['common'][:1].upper() + e['common'][1:]} is on the invasive species watch list",
-            f"You just added <em>{T.esc(e.get('scientific', ''))}</em> to the registry. From the next analysis on, BlueSight raises "
+            f"You just added <em>{T.esc(e.get('scientific', ''))}</em> to the registry. From the next analysis on, AquaLens raises "
             "this alert on the Analyze and Results pages wherever it recognises it. Report the sighting following your "
             "invasive-species protocol.")
     if st.button("Dismiss alert", icon=":material/close:", key="watch_dismiss"):
@@ -65,7 +65,7 @@ def page() -> None:
     db = C.db()
     th = cfg["identify"]
     T.header("Step 3 of 3 · Review", "Review queue",
-             "Here's everything BlueSight couldn't identify on its own, most unfamiliar first. Nothing joins the species "
+             "Here's everything AquaLens couldn't identify on its own, most unfamiliar first. Nothing joins the species "
              "registry without your decision, and an approval takes effect straight away (no retraining).", step=3)
     show_watch_alert()
 
