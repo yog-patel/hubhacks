@@ -41,6 +41,7 @@ if __name__ == "__main__":
            "tracks_known_as_new_species": [t for t in tr if t["status"] == "known"],
            "tracks_uncertain_as_new_species": len([t for t in tr if t["status"] == "uncertain"]),
            "review_items_before": rep1["review_items"], "review_items_after": rep2["review_items"]}
+    (ROOT / "outputs" / "eval").mkdir(parents=True, exist_ok=True)
     (ROOT / "outputs" / "eval" / "demo_rehearsal.json").write_text(json.dumps(out, indent=1, default=float))
     print(json.dumps(out, indent=1, default=float)[:2500])
     subprocess.run([sys.executable, "-I", str(ROOT / "scripts" / "reset_demo.py"), "--start", str(a.start), "--duration", str(a.duration)], check=True)

@@ -106,7 +106,7 @@ def main() -> None:
         settle(page, 4)
         body = page.inner_text("body")
         full_shot(page, out / "6_registry.png", 1440)
-        check("6: registry shows the new species with the 'New' badge", a.name.lower() in body.lower() and "added in review" in body)
+        check("6: registry shows the new species with the 'New' badge", a.name.lower() in body.lower() and "added in review" in body.lower())
         check("6: approved by Demo Biologist", "Demo Biologist" in body)
         # 5. re-run: the new species is recognised
         analyze(page, a.url, out, "7_run2")

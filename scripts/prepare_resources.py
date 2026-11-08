@@ -38,7 +38,8 @@ VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".m4v"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".heic"}
 DOC_EXTS = {".pdf", ".docx", ".doc", ".txt", ".md", ".pptx", ".xlsx", ".csv"}
 IGNORE_DIRS = {".git", ".venv", "outputs", "data", "src", "app", "scripts", "tests", "models", "docs"}
-PROJECT_DOCS = {"CLAUDE.md", "README.md", "RESOURCES.md", "DECISIONS.md", "EVALUATION.md", "DEMO.md", "requirements.txt"}
+PROJECT_DOCS = {"CLAUDE.md", "README.md", "RESOURCES.md", "DECISIONS.md", "EVALUATION.md", "DEMO.md", "AUDIT.md",
+                "LOCAL_VERIFICATION.md", "requirements.txt", "requirements-dev.txt"}
 
 
 def discover(root: Path) -> dict[str, list[Path]]:

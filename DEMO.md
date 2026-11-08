@@ -29,7 +29,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 ## 2. Counts per species with confidence (~1 min)
 
 1. **Run the analysis** → **Custom window** → Start **1280**, Length **75** → **Analyze video**.
-   The five steps (Enhance → Detect → Track → Identify → Count) light up and turn into ticks. With a warm cache (after `reset_demo.py`) it finishes in **about 10–40 s**. A first-ever run of this window takes about 3–4 minutes on the M5.
+   The five steps (Enhance → Detect → Track → Identify → Count) light up and turn into ticks. With a warm cache (after `reset_demo.py`) it finishes in **about 10–40 s**. A first-ever run of this window takes about 3–4 minutes on the M5 and about 8 minutes on an M2, so always run `reset_demo.py` beforehand.
 2. The green message: *Finished in … on this computer (Apple M5 …). External network connections during the run: 0.* Three summary cards follow.
 3. Click **See full results**. Point at:
    * the four cards: **Fish counted** (MeanCount), **Species found**, **Items to review**, **Footage with low visibility**;
@@ -48,11 +48,11 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 1. On item 1, type **European green crab** in *Species name*. Click outside the box, then press **N** (or click **New species**).
    A toast confirms it, the counter moves to **1 of 17 reviewed**, and the next item appears. (Shortcuts: `N` new · `E` existing · `X` reject · `J` skip · `K` back.)
-2. Sidebar **Species registry**: a **European green crab** card with the green **★ New · added in review** badge, **Approved by Demo Biologist**, today's date, and 5 reference images (the crab crops). No retraining: the prototype was rebuilt instantly.
+2. Sidebar **Species registry**: a **European green crab** card with the green **★ Added in review** badge, **Approved by Demo Biologist**, today's date, and 5 reference images (the crab crops). No retraining: the prototype was rebuilt instantly.
 
 ## 5. Re-run: the new species is recognised (~1 min)
 
-1. **Analyze** → same Custom window (1280 / 75) → **Analyze video** (cached, about 40 s).
+1. **Analyze** → same Custom window (1280 / 75) → **Analyze video** (cached detections, but the crops are re-identified against the new registry: about 40 s on the M5, **about 1½ minutes on an M2**. Talk through the registry card while it runs).
 2. **See full results**: **Species found** now includes **European green crab**, and the species table has a *European green crab* row. In the protocol subsamples it is counted as an **invertebrate**, not in total fish.
 3. Two more crab tracks that nobody reviewed (**21:29–21:42** and **21:35–21:48**) are now recognised automatically (EVALUATION.md §5b).
    *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches. In the rehearsal 2 of the 5 tracks recognised as crab were outside the crab's walk (v1: 8 of 10). The fix is the review loop: confirm more crab examples with **Existing species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
@@ -96,3 +96,16 @@ In the Review queue, open an item that shows only the pole or sand → **Reject:
 | 7 | re-run in the app; 0 external network connections | PASS (43 s) |
 | 8 | results list European green crab | PASS |
 | 9 | Model & privacy: "0 external network calls during the last run", offline mode on | PASS |
+
+## Rehearsal record: second laptop (Apple M2, 2026-11-08, fresh clone)
+
+Set up from scratch (README quick start), then `scripts/demo_check.py`: **13/13 checks passed**. Measured on the M2:
+
+| Step | Time on M2 |
+|---|---|
+| First-ever analysis of the demo window (`reset_demo.py` on a cold cache) | 465 s (~8 min) |
+| `reset_demo.py` with a warm cache | ~100 s |
+| Step 2, Analyze in the app (warm cache) | 9 s |
+| Step 5, re-run after approving the crab | 83 s (161 s the first time) |
+
+`scripts/rehearse_demo.py` on the M2 reproduced the EVALUATION.md §5b numbers exactly: item 1 = crab, unfamiliar, 0.45, 21:32–21:48; after approval 5 tracks recognised as crab (3 inside the walk, incl. the unreviewed 21:29–21:42 and 21:35–21:48), 11 'probably crab?', review items 17 → 16.
