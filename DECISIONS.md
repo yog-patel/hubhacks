@@ -149,3 +149,63 @@ An automated pass with Playwright on every page found no images without alt text
 - Every custom colour in `app/ui/theme.py` is a CSS `light-dark()` token. Streamlit sets `color-scheme` on the app root, so the custom components switch along with Streamlit's own widgets, with no JavaScript. The only places CSS can't reach (Altair charts, the before/after iframe and the logo) read `st.context.theme.type`.
 - Dark palette: deep-water background `#0B141A`. All text is at least 4.5:1 (ink 14.2, muted 6.7, status colours 7.5–9.2). Primary buttons use `#1F7C96` (4.8:1 with white text); text accents use the lighter `#5BB8D3`.
 - Page titles and species names use a system book serif (Iowan Old Style / New York / Georgia) for a field-guide feel; nothing is downloaded. Hardcoded hex colours in the pages were replaced with tone classes (`t-ok`, `t-warn`, `t-bad`, `t-muted`, `t-info`).
+
+# v3 decisions (branch `v3-hackathon`, 2026-11-08)
+
+Goal: make BlueSight usable by non-technical staff, match Coastal Action's protocol outputs, and add the climate/invasive
+angle from the problem statement, without breaking any hard constraint (local only, permissive licences, scientists in
+charge). Coastal Action could not be contacted during the hackathon, so the assumptions below are recorded instead.
+
+## D25. Image clarity is not a visibility distance
+The protocol records horizontal visibility in four categories read off the 2 m pole (<0.5, 0.5–1.0, 1.0–1.5, >1.5 m).
+We tried to map BlueSight's 0–1 score onto those categories, but in T1-STAT2 the black tape bands are visible to the far
+end of the pole even at score 0.27 (7:00, the haziest stretch) and 0.35 (11:00). The score measures how hard fish are
+to spot (contrast, haze), not distance. So: staff enter the pole category in **Survey details**; the score is reported as
+"image clarity" (too murky to identify / fair / good) and never as metres. Automatic pole reading is future work.
+
+## D26. AI-assisted counting replaces a 6-hour detector training run
+With ~140 hand-marked fish and one video, a trained detector was unlikely to beat the motion detector within the
+hackathon (OWLv2 found 0 of 36 fish; EVALUATION.md). The **Count check** page instead shows the AI's numbered marks on
+each 60-second subsample frame; a person removes wrong marks (one by one or a whole category, e.g. "too murky") and adds
+missed fish. Checked counts replace the AI's in the "MeanCount with checks", the Excel file says which rows were
+checked, and corrections export to `outputs/training_labels/<run>/labels.json` (kept boxes = positives, removed = hard
+negatives, missed fish = count) so a Nova Scotia detector can be trained later on real corrections.
+
+## D27. Blind-count QC follows the protocol's numbers
+Blind mode hides the AI's marks. Per frame we report the percent difference |a−b| / mean(a, b) (protocol: < 6 %); overall
+agreement = Σmin / Σmax over the blind frames (protocol: ≥ 95 %). Assisted checks win over blind ones when both exist
+for a subsample, because they are the corrected count.
+
+## D28. Watch list, expected species list and temperature
+* **Watch list** (config `watch_list`, then edited in the app; stored in SQLite): seeded with European green crab
+  (invasive in Nova Scotia), black sea bass and blue crab (warm-water species expanding north, "verify and report").
+  The two warm-water entries are examples of the alert, chosen by us, not by Coastal Action.
+* **Temperature ranges are left empty** on purpose: we would rather show no range alert than an invented range. Staff
+  enter ranges they trust; a survey temperature outside a range raises an alert.
+* **Water temperature is typed in** from field sheets (Survey details). Nothing is fetched online (CIOOS etc. would
+  need a live connection; a one-time import is future work).
+* **Expected species list** = `species_candidates` + `expected_extra` (the photo labels). A species confirmed in review
+  that is on neither list raises a "possible new arrival" alert.
+* The review queue's species name is now a picker over the expected list + watch list + registry, and still accepts any
+  typed name.
+
+## D29. Excel export
+`openpyxl` (MIT). Sheet *Subsamples* uses the protocol's column names (Total Fish Count, Invertebrate count, Total species
+observed, a column per species, "Unknown/Unable to ID due to visibility", Notes) plus image clarity and who counted it.
+*Summary* has MeanCount (AI and with checks), MaxN, richness, clarity, pole visibility, temperature, juveniles, QC
+agreement, alerts, models and the network-call count. We did not have Coastal Action's actual template (D3), so column
+order may need adjusting to their sheet.
+
+## D30. Launchers and setup
+`Start BlueSight (Windows).bat` / `Start BlueSight (Mac).command`: first start installs uv, Python 3.11 and the packages
+(`uv pip --torch-backend=auto` picks the CUDA build of PyTorch when an NVIDIA GPU is present), downloads the models once
+(`scripts/setup_models.py`) and builds the data layout; later starts just launch the app and open the browser. The
+Windows launcher was written for Coastal Action's planned 12 GB-GPU PC but **has not been run on Windows** during the
+hackathon (no Windows machine available). Video encoding falls back from Apple's hardware encoder to libx264/h264/mp4v,
+so Windows needs no extra install. Copying `models/` from another computer skips the download.
+
+## D31. Schooling fish label stays unconfirmed
+`small_schooling_fish` comes from the biologists' tally dots on T2-STAT2 screenshots; no species was named. Visually the
+fish (small, slender, silvery, mid-water schools over sand in September) fit Atlantic silverside, juvenile herring or
+sand lance. We did not rename it: identification is the biologists' call, and the review queue lets them rename or
+confirm it.
