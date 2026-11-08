@@ -76,6 +76,14 @@ detector:
     score_threshold: 0.10
     grid: 3                 # tile the frame grid x grid (fish are small)
 
+# Fish counter trained on the biologists' tally dots (DINOv2-small features at 2x + motion channels; EVALUATION.md v4).
+# Gives a second, independent count for every protocol subsample frame and a "where are the fish" map for Count check.
+density:
+  enabled: true
+  weights: models/density/head.pt
+  disagree_ratio: 1.5      # subsamples where one estimate is > 1.5x the other (and differ by >= 5 fish) are checked first
+  disagree_min_diff: 5
+
 tracker:
   track_activation_threshold: 0.2
   lost_track_buffer: 4      # NOTE: supervision scales this by frame_rate/30, so at 2 fps values < 15 mean 0 frames (E4)
@@ -124,6 +132,20 @@ species_candidates:
   - {name: european_green_crab, common: European green crab, scientific: Carcinus maenas}
   - {name: atlantic_rock_crab, common: Atlantic rock crab, scientific: Cancer irroratus}
   - {name: sand_shrimp, common: sand shrimp, scientific: Crangon septemspinosa}
+# Labels from the provided photos that are expected (not "new arrivals") even though they are not species names
+expected_extra: [small_schooling_fish, benthic_organism_unconfirmed]
+
+# Watch list: invasive, range-expanding or unexpected species. Seed only - Coastal Action edits it in the app
+# (Species registry -> Watch list). temp_range_c is left empty on purpose: staff enter ranges they trust; a survey whose
+# water temperature is outside a species' range raises an alert. Nothing here is fetched from the internet.
+watch_list:
+  - {name: european_green_crab, common: European green crab, scientific: Carcinus maenas, group: invertebrate,
+     reason: "Invasive in Nova Scotia; damages eelgrass and competes with native crabs. Report sightings.", temp_range_c: null}
+  - {name: black_sea_bass, common: black sea bass, scientific: Centropristis striata, group: fish,
+     reason: "Warm-water species expanding north with ocean warming; unexpected on the South Shore. Verify and report.", temp_range_c: null}
+  - {name: blue_crab, common: blue crab, scientific: Callinectes sapidus, group: invertebrate,
+     reason: "Warm-water crab with occasional northern sightings; unexpected here. Verify and report.", temp_range_c: null}
+
 # counted in the protocol's invertebrate column, not in total fish
 invertebrate_species: [european_green_crab, atlantic_rock_crab, sand_shrimp]
 

@@ -14,7 +14,7 @@ def _b64(img_bgr: np.ndarray) -> str:
 
 
 def before_after(original_bgr: np.ndarray, enhanced_bgr: np.ndarray, left_label: str = "Original",
-                 right_label: str = "Enhanced", height: int | None = None) -> None:
+                 right_label: str = "Cleaned up", height: int | None = None) -> None:
     """Drag (or use the arrow keys on) the handle to compare the two images."""
     h, w = original_bgr.shape[:2]
     a, b = _b64(original_bgr), _b64(enhanced_bgr)
@@ -22,7 +22,7 @@ def before_after(original_bgr: np.ndarray, enhanced_bgr: np.ndarray, left_label:
 
     dark = is_dark()
     text, border, accent = ("#B4C3CC", "#25343F", "#5BB8D3") if dark else ("#3B4D59", "#D5DEE3", "#0A6680")
-    st.iframe(f"""<!doctype html><html><body style="margin:0;background:transparent;color-scheme:{'dark' if dark else 'light'}">
+    st.iframe(f"""<!doctype html><html><body style="margin:0;overflow:hidden;background:transparent;color-scheme:{'dark' if dark else 'light'}">
 <div id="c" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;max-width:720px">
   <div id="wrap" style="position:relative;width:100%;aspect-ratio:{w}/{h};overflow:hidden;border-radius:12px;border:1px solid {border};touch-action:none;cursor:ew-resize">
     <img src="data:image/jpeg;base64,{b}" alt="{right_label} frame" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
@@ -33,8 +33,7 @@ def before_after(original_bgr: np.ndarray, enhanced_bgr: np.ndarray, left_label:
     <span style="position:absolute;left:10px;top:10px;background:rgba(13,27,36,.82);color:#fff;font-size:13px;font-weight:600;padding:3px 9px;border-radius:6px">{left_label}</span>
     <span style="position:absolute;right:10px;top:10px;background:#0A6680;color:#fff;font-size:13px;font-weight:600;padding:3px 9px;border-radius:6px">{right_label}</span>
   </div>
-  <label for="r" style="display:block;font-size:14px;color:{text};margin-top:8px">Drag the image, or move this slider (arrow keys work), to compare</label>
-  <input id="r" type="range" min="0" max="100" value="50" style="width:100%;accent-color:{accent}" aria-label="Comparison position: percent of the original image shown">
+  <input id="r" type="range" min="0" max="100" value="50" style="width:100%;margin:6px 0 0;accent-color:{accent}" aria-label="Drag to compare original and cleaned-up image" title="Drag to compare">
 </div>
 <script>
 const wrap=document.getElementById('wrap'),clip=document.getElementById('clip'),bar=document.getElementById('bar'),r=document.getElementById('r'),aimg=document.getElementById('aimg');
