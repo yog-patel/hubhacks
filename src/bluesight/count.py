@@ -82,6 +82,22 @@ def protocol_counts(counts: pd.DataFrame, points: Sequence[float], window_s: flo
     return out
 
 
+def protocol_frame_times(counts: pd.DataFrame, points: Sequence[float], window_s: float) -> list[float]:
+    """The sampled frame time ``protocol_counts`` used for each subsample point (for the count check page)."""
+    out = []
+    times = counts.index.to_numpy(dtype=float)
+    for p in points:
+        if len(times) == 0:
+            out.append(float(p))
+            continue
+        sel = np.abs(times - p) <= window_s / 2 + 1e-6
+        if not sel.any():
+            sel = np.abs(times - p) == np.abs(times - p).min()
+        sub = counts[sel]
+        out.append(float(sub.sum(axis=1).idxmax()) if len(sub.columns) else float(times[sel][0]))
+    return out
+
+
 def visibility_summary(vis: Sequence[float], v_min: float) -> dict[str, float]:
     """Share of footage below V_MIN, so poor visibility is never reported as zero fish."""
     v = np.asarray(vis, float)

@@ -86,6 +86,9 @@ def page() -> None:
                 f'<span>Resolution <b>{info.width}×{info.height}</b></span><span>Frame rate <b>{info.fps:.2f} fps</b></span>'
                 f'<span>Analysed at <b>{cfg["sampling"]["fps"]:g} frames per second</b></span></div>')
 
+    if len(vids) > 1:
+        batch_section(cfg, vids)
+
     # ------------------------------------------------------------------ enhancement preview
     with st.container(border=True):
         T.section("Check the water clarity", "2", "optional")
@@ -173,6 +176,32 @@ def page() -> None:
                 show_summary(C.load_report(run), None)
 
 
+def batch_section(cfg: dict, vids: list[Path]) -> None:
+    """Analyse several videos one after another with the protocol window (e.g. a whole survey day)."""
+    with st.expander(f"Analyze several videos at once ({len(vids)} available)", icon=":material/video_library:"):
+        st.caption("Each video gets the protocol window (skip 1 min, analyse 15 min). Leave the computer running; about "
+                   "15–20 minutes per video on a laptop GPU, faster on a desktop GPU.")
+        pick = st.multiselect("Videos", [str(v) for v in vids], format_func=lambda p: Path(p).name, key="batch_pick")
+        if st.button("Analyze selected videos", disabled=not pick, icon=":material/playlist_play:", key="batch_go"):
+            from bluesight.pipeline import run_video
+
+            done = []
+            bar = st.progress(0.0, text="Starting…")
+            for i, v in enumerate(pick):
+                def cb(f: float, m: str, i=i, v=v) -> None:
+                    bar.progress(min(1.0, (i + f) / len(pick)), text=f"{Path(v).name} ({i + 1}/{len(pick)}): {m}")
+                try:
+                    rep = run_video(v, cfg, None, None, cb)
+                    done.append({"Video": Path(v).name, "MeanCount": rep["MeanCount_total_fish"],
+                                 "Review items": rep["review_items"], "Runtime (s)": rep["runtime_s"], "Status": "done"})
+                except Exception as exc:  # keep going with the next video
+                    log.exception("batch: %s failed", v)
+                    done.append({"Video": Path(v).name, "Status": f"failed: {exc}"})
+            bar.progress(1.0, text="All done")
+            st.dataframe(done, hide_index=True, width="stretch")
+            st.success("Finished. Open Results to see each video, or Count check to verify the counts.")
+
+
 def show_summary(rep: dict, secs: float | None) -> None:
     net = rep.get("network") or {}
     ext = net.get("external_connection_attempts")
@@ -191,6 +220,7 @@ def show_summary(rep: dict, secs: float | None) -> None:
         {"k": "Footage too murky", "v": f"{100 * rep['visibility']['fraction_below_v_min']:.0f}", "unit": "%",
          "d": "of sampled frames below the visibility threshold"},
     ])
-    c1, c2 = st.columns(2)
-    c1.page_link(C.PAGES["results"], label="See full results", icon=":material/bar_chart:")
+    c1, c2, c3 = st.columns(3)
+    c1.page_link(C.PAGES["check"], label="Check the counts", icon=":material/rule:")
     c2.page_link(C.PAGES["review"], label="Open the review queue", icon=":material/fact_check:")
+    c3.page_link(C.PAGES["results"], label="See full results", icon=":material/bar_chart:")

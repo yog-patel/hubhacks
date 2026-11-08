@@ -406,14 +406,16 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
     pcfg = cfg["protocol"]
     points = C.subsample_points(start, end, float(pcfg["subsample_interval_s"]))
     pc = C.protocol_counts(counts, points, float(pcfg["count_window_s"]))
+    ftimes = C.protocol_frame_times(counts, points, float(pcfg["count_window_s"]))
     invert = set(cfg.get("invertebrate_species") or [])
     fish_cols = [c for c in pc.columns if c not in invert]
     vis_t = frames.set_index(frames.t_s.round(3)).visibility
     sub_rows = []
-    for p in points:
+    for p, ft in zip(points, ftimes):
         row = pc.loc[p].to_dict() if p in pc.index else {}
         near = vis_t.iloc[int(np.argmin(np.abs(vis_t.index.to_numpy() - p)))] if len(vis_t) else 0.0
-        sub_rows.append({"subsample_t_s": p, "time": f"{int(p // 60)}:{int(p % 60):02d}", "visibility": round(float(near), 3),
+        sub_rows.append({"subsample_t_s": p, "time": f"{int(p // 60)}:{int(p % 60):02d}", "frame_t_s": round(float(ft), 3),
+                         "visibility": round(float(near), 3),
                          "total_fish_count": int(sum(row.get(c, 0) for c in fish_cols)),
                          "invertebrate_count": int(sum(row.get(c, 0) for c in invert)), **{k: int(v) for k, v in row.items()}})
     mc_proto = C.meancount(pc) if len(pc.columns) else {}
@@ -509,9 +511,16 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
         "review_items": len(items), "review_items_packaged": len(flag_ids), "flags": flag_ids,
         "registry_species": names,
         "annotated_video": str(ann_path), "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
+        "cache_dir": str(cdir), "process_width": int(cfg["sampling"]["process_width"]),
     }
     (run_dir / "report.json").write_text(json.dumps(report, indent=2, default=float))
     pd.DataFrame(sub_rows).to_csv(run_dir / "report.csv", index=False)
+    try:  # protocol-layout Excel workbook (the app rebuilds it with survey details and checks on download)
+        from .export import workbook_bytes
+
+        (run_dir / "report.xlsx").write_bytes(workbook_bytes(report, cfg))
+    except Exception:  # never lose a run over the spreadsheet
+        log.exception("could not write report.xlsx")
     pd.DataFrame(species_rows).to_csv(run_dir / "species_summary.csv", index=False)
     with db.tx() as c:
         for tbl in ("frames", "detections", "tracks"):

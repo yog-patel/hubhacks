@@ -9,6 +9,9 @@ import pandas as pd
 import streamlit as st
 
 from bluesight import count as CNT
+from bluesight import countcheck as CC
+from bluesight import survey as SV
+from bluesight.export import workbook_bytes
 from bluesight.enhance import enhance_frame
 from bluesight.io_video import read_frame_at, resize_width
 
@@ -23,11 +26,50 @@ LABEL_NOTES = {
 
 
 def nice_label(label: str) -> str:
+    cfg = C.cfg()
     if label.startswith("Unconfirmed: probably "):
-        return "Probably " + label.split("probably ", 1)[1].rstrip("?").replace("_", " ") + " (unconfirmed)"
+        return "Probably " + SV.display_name(label.split("probably ", 1)[1].rstrip("?"), cfg) + " (unconfirmed)"
     if label in (CNT.UNKNOWN_LABEL, CNT.UNFAMILIAR_LABEL):
         return label
-    return label.replace("_", " ").capitalize()
+    n = SV.display_name(label, cfg)
+    return n[:1].upper() + n[1:]
+
+
+def survey_form(rep: dict, cfg: dict) -> dict:
+    """Survey details typed in by staff (never fetched online). Saved per analysis and added to the Excel file."""
+    db = C.db()
+    sv = SV.get_survey(db, rep["run_id"])
+    filled = sv.get("water_temp_c") is not None or sv.get("pole_visibility") not in (None, "Not recorded")
+    with st.expander("Survey details: water temperature, pole visibility, juveniles" + (" ✓" if filled else " (add them)"),
+                     expanded=False):
+        with st.form(f"survey_{rep['run_id']}", border=False):
+            a, b, c = st.columns(3)
+            site = a.text_input("Site", sv.get("site") or rep["site"])
+            date = b.text_input("Survey date", sv.get("date") or rep["date"], help="YYYY-MM-DD")
+            obs = c.text_input("Observer", sv.get("observer") or C.reviewer())
+            d, e, f = st.columns(3)
+            has_t = d.checkbox("Water temperature recorded", value=sv.get("water_temp_c") is not None)
+            temp = d.number_input("Water temperature (°C)", -2.0, 35.0, float(sv.get("water_temp_c") or 12.0), 0.1,
+                                  disabled=False, help="From your field sheet or logger. Used for the watch-list range check.")
+            pole = e.selectbox("Visibility from the pole", SV.POLE_CHOICES,
+                               index=SV.POLE_CHOICES.index(sv["pole_visibility"]) if sv.get("pole_visibility") in SV.POLE_CHOICES else 0,
+                               help="Read off the 2 m pole (black tape every 0.5 m), as in the protocol.")
+            juv = f.selectbox("Juveniles present", ["Not recorded", "1 = present", "0 = absent"],
+                              index={None: 0, 1: 1, 0: 2}.get(sv.get("juveniles"), 0))
+            notes = st.text_area("Notes", sv.get("notes") or "", height=68)
+            if st.form_submit_button("Save survey details", icon=":material/save:"):
+                SV.save_survey(db, rep["run_id"], site=site, date=date, observer=obs,
+                               water_temp_c=float(temp) if has_t else None, pole_visibility=pole,
+                               juveniles={"1 = present": 1, "0 = absent": 0}.get(juv), notes=notes)
+                st.toast("Survey details saved. They're included in the Excel download.", icon=":material/check_circle:")
+                st.rerun()
+    return SV.get_survey(db, rep["run_id"])
+
+
+def show_alerts(items: list[dict]) -> None:
+    for a in items:
+        icon = {"watch": ":material/warning:", "range": ":material/thermostat:", "new": ":material/new_releases:"}[a["level"]]
+        (st.error if a["level"] == "watch" else st.warning)(f"**{a['title']}.** {a['body']}", icon=icon)
 
 
 @st.cache_data(show_spinner=False)
@@ -168,6 +210,15 @@ def page() -> None:
                    "counted in 'Unknown/Unable to ID due to visibility', so treat totals as a lower bound, not as zero fish.",
                    icon=":material/visibility_off:")
 
+    sv = survey_form(rep, cfg)
+    al = SV.alerts(rep, C.db(), cfg, sv)
+    show_alerts(al)
+    chk_rows = CC.checks(C.db(), rep["run_id"])
+    chk = CC.summary(rep, chk_rows)
+    if chk["n_checked"]:
+        st.info(f"A person checked **{chk['n_checked']} of {chk['n_subsamples']}** subsamples: MeanCount with checks "
+                f"**{chk['MeanCount_checked']:.1f}** (AI alone {chk['MeanCount_ai']:.1f}).", icon=":material/fact_check:")
+
     # ------------------------------------------------------------------ species table
     st.subheader("Counts by species", anchor=False)
     tab = species_table(rep)
@@ -240,8 +291,17 @@ def page() -> None:
     st.subheader("Download", anchor=False)
     run_dir = Path(rep["annotated_video"]).parent if rep.get("annotated_video") else None
     if run_dir and (run_dir / "report.csv").exists():
-        d1, d2, d3 = st.columns(3)
         rid = rep["run_id"]
+        try:
+            xlsx = workbook_bytes(rep, cfg, sv, chk_rows, chk if chk["n_checked"] else None, al)
+            st.download_button("Download Excel report (protocol layout)", xlsx, f"{rid}.xlsx",
+                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary",
+                               icon=":material/table_view:",
+                               help="One row per 60-second subsample with the protocol's columns, plus a summary sheet "
+                                    "(MeanCount, MaxN, species, visibility, temperature, checks, alerts).")
+        except Exception as exc:  # shown, and the CSV downloads still work
+            st.warning(f"Couldn't build the Excel file ({exc}). The CSV downloads below still work.")
+        d1, d2, d3 = st.columns(3)
         d1.download_button("Subsample counts (CSV)", (run_dir / "report.csv").read_bytes(), f"{rid}_subsamples.csv", "text/csv",
                            icon=":material/download:", help="One row per 60-second subsample, in the protocol spreadsheet layout.")
         if (run_dir / "species_summary.csv").exists():

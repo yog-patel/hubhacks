@@ -19,7 +19,8 @@ st.set_page_config(page_title="BlueSight AI", page_icon=":material/water:", layo
                    initial_sidebar_state="expanded")
 
 from ui import common as C  # noqa: E402
-from ui import page_analyze, page_privacy, page_registry, page_results, page_review, theme  # noqa: E402
+from ui import (page_analyze, page_check, page_guide, page_privacy, page_registry, page_results, page_review,  # noqa: E402
+                theme)
 
 theme.inject()
 st.logo(str(ROOT / "app" / "assets" / ("logo-dark.svg" if theme.is_dark() else "logo.svg")), size="large",
@@ -28,7 +29,9 @@ C.base_config()
 
 pending = C.pending_count()
 pages = {
+    "guide": st.Page(page_guide.page, title="How it works", icon=":material/help:", url_path="guide"),
     "analyze": st.Page(page_analyze.page, title="Analyze", icon=":material/play_circle:", url_path="analyze", default=True),
+    "check": st.Page(page_check.page, title="Count check", icon=":material/rule:", url_path="check"),
     "results": st.Page(page_results.page, title="Results", icon=":material/bar_chart:", url_path="results"),
     "review": st.Page(page_review.page, title=f"Review queue ({pending})" if pending else "Review queue",
                       icon=":material/fact_check:", url_path="review"),
@@ -36,7 +39,7 @@ pages = {
     "privacy": st.Page(page_privacy.page, title="Model & privacy", icon=":material/verified_user:", url_path="privacy"),
 }
 C.PAGES.update(pages)
-nav = st.navigation({"Survey": [pages["analyze"], pages["results"], pages["review"]],
-                     "Reference": [pages["registry"], pages["privacy"]]})
+nav = st.navigation({"Survey": [pages["analyze"], pages["check"], pages["review"], pages["results"]],
+                     "Reference": [pages["registry"], pages["privacy"], pages["guide"]]})
 C.sidebar()
 nav.run()

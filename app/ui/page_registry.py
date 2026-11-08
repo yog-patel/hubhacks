@@ -3,18 +3,80 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
+
+from bluesight import survey as SV
 
 from . import common as C
 from . import theme as T
 
 
 def page() -> None:
+    T.header("Reference library", "Species registry",
+             "The species BlueSight can recognise, the watch list of invasive and unexpected species, and the expected "
+             "Nova Scotia species list. Adding images in the review queue takes effect immediately. Nothing is retrained.")
+    t1, t2, t3 = st.tabs(["Recognised species", "Watch list", "Expected species list"])
+    with t1:
+        gallery()
+    with t2:
+        watch_tab()
+    with t3:
+        expected_tab()
+
+
+def watch_tab() -> None:
+    cfg, db = C.cfg(), C.db()
+    st.html('<p class="bs-small">When a watch-list species is counted or confirmed in review, BlueSight shows a red alert on '
+            'the results and in the Excel report. If you enter a usual water-temperature range and the survey temperature '
+            'falls outside it, you get a range alert too. Leave a range empty if you are not sure of it.</p>')
+    rows = SV.watch_list(db, cfg, include_inactive=True)
+    df = pd.DataFrame([{"Common name": r["common"], "Scientific name": r["scientific"], "Group": r["grp"] or "fish",
+                        "Why we watch it": r["reason"], "Min °C": r["temp_min_c"], "Max °C": r["temp_max_c"],
+                        "Active": bool(r["active"])} for r in rows])
+    if df.empty:
+        df = pd.DataFrame(columns=["Common name", "Scientific name", "Group", "Why we watch it", "Min °C", "Max °C", "Active"])
+    ed = st.data_editor(df, num_rows="dynamic", hide_index=True, width="stretch", key="watch_editor", column_config={
+        "Group": st.column_config.SelectboxColumn(options=["fish", "invertebrate"], required=True),
+        "Min °C": st.column_config.NumberColumn(min_value=-2.0, max_value=35.0, step=0.5, format="%.1f"),
+        "Max °C": st.column_config.NumberColumn(min_value=-2.0, max_value=35.0, step=0.5, format="%.1f"),
+        "Why we watch it": st.column_config.TextColumn(width="large"),
+    })
+    if st.button("Save watch list", icon=":material/save:", disabled=not C.reviewer(),
+                 help="Add your name under Reviewer in the sidebar first." if not C.reviewer() else None):
+        keep = set()
+        for r in ed.to_dict("records"):
+            name = str(r.get("Common name") or "").strip()
+            if not name:
+                continue
+            key = SV.slug_name(name)
+            keep.add(key)
+            num = lambda v: None if v is None or pd.isna(v) else float(v)  # noqa: E731
+            SV.save_watch(db, key, name, str(r.get("Scientific name") or ""), str(r.get("Group") or "fish"),
+                          str(r.get("Why we watch it") or ""), num(r.get("Min °C")), num(r.get("Max °C")),
+                          bool(r.get("Active", True)), C.reviewer())
+        for r in rows:
+            if r["name"] not in keep:
+                SV.save_watch(db, r["name"], r["common"], r["scientific"], r["grp"], r["reason"], r["temp_min_c"],
+                              r["temp_max_c"], False, C.reviewer())
+        st.toast("Watch list saved.", icon=":material/check_circle:")
+        st.rerun()
+
+
+def expected_tab() -> None:
+    cfg = C.cfg()
+    st.html('<p class="bs-small">Species expected in Nova Scotia nearshore surveys. A species confirmed in review that is '
+            'NOT on this list or the watch list is reported as a possible new arrival. Edit the list in '
+            '<code>config.yaml → species_candidates</code>.</p>')
+    inv = set(cfg.get("invertebrate_species") or [])
+    st.dataframe(pd.DataFrame([{"Common name": s["common"], "Scientific name": s["scientific"],
+                                "Group": "invertebrate" if s["name"] in inv else "fish"} for s in SV.expected_species(cfg)]),
+                 hide_index=True, width="stretch")
+
+
+def gallery() -> None:
     cfg = C.cfg()
     db = C.db()
-    T.header("Reference library", "Species registry",
-             "The species BlueSight can recognise. Each one is described by the average of its reference images, so adding "
-             "images in the review queue takes effect immediately. Nothing is retrained.")
     rows = C.registry(read_only=True).list_species()
     held = cfg.get("held_out_species") or []
     if not rows:
@@ -40,12 +102,12 @@ def page() -> None:
         imgs = [p for p in imgs if Path(p).exists()]
         is_new = r["source"] == "approved"
         with cols[i % 3], st.container(border=True, key=f"spcard_{i}"):
-            label = (r["display_name"] or r["name"]).replace("_", " ")
+            label = SV.display_name(r["name"], cfg)
             if imgs:
                 st.image(imgs[0], width="stretch", alt=f"Reference image of {label}")
             else:
                 st.html('<div class="bs-noimg">No image on this computer</div>')
-            name = (r["display_name"] or r["name"]).replace("_", " ")
+            name = SV.display_name(r["name"], cfg)
             badges = (T.plain_badge("Added in review", "ok", "★") if is_new else
                       T.plain_badge("From labelled photos", "info"))
             if not r["active"]:

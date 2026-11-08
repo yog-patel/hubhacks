@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from bluesight import survey as SV
 from bluesight.logs import get_logger
 
 from . import common as C
@@ -45,6 +46,8 @@ def page() -> None:
              "Here's everything BlueSight couldn't identify on its own, most unfamiliar first. Nothing joins the species "
              "registry without your decision, and an approval takes effect straight away (no retraining).", step=3)
 
+    if st.session_state.get("watch_hit"):
+        st.error(f"**Watch-list species confirmed.** {st.session_state.pop('watch_hit')}", icon=":material/warning:")
     run_ids = [r["run_id"] for r in db.q("SELECT run_id FROM runs ORDER BY started_at DESC")]
     if not run_ids:
         T.empty_state("Nothing to review yet", "Review items are created when you analyse a video.",
@@ -118,7 +121,10 @@ def page() -> None:
         b1, b2, b3 = st.container(key="decide").columns(3, gap="medium")
         with b1:
             st.html('<p class="bs-choice">A species not in the registry</p>')
-            name = st.text_input("Species name", key=f"n_{f['flag_id']}", placeholder="e.g. European green crab")
+            name = st.selectbox("Species name", SV.species_choices(C.db(), cfg), index=None, accept_new_options=True,
+                                key=f"n_{f['flag_id']}", placeholder="Pick from the Nova Scotia list, or type a name",
+                                help="The list holds the expected Nova Scotia species and the watch list. Type any other "
+                                     "name to add it; species not on the list are reported as possible new arrivals.") or ""
             if st.button("New species", key=f"new_{f['flag_id']}", type="primary", icon=":material/add_circle:",
                          width="stretch", shortcut="N", disabled=not ok,
                          help="Add this fish to the registry as a new species. Its crops become reference images."):
@@ -127,12 +133,15 @@ def page() -> None:
                 else:
                     key = C.registry().add_images(name, crops, C.reviewer(), new_species=True, ref_tag=f"{f['flag_id']}_")
                     record_decision(f, "new_species", key)
+                    watch = {w["name"]: w for w in SV.watch_list(C.db(), cfg)}
+                    if key in watch:
+                        st.session_state["watch_hit"] = f"{name.strip()} is on the watch list: {watch[key]['reason']}"
                     st.toast(f"Added {name.strip()} to the registry. Re-run the video to count it.", icon=":material/check_circle:")
                     st.rerun()
         with b2:
             st.html('<p class="bs-choice">A species we already know</p>')
             if species:
-                ex = st.selectbox("Registry species", species, key=f"e_{f['flag_id']}", format_func=lambda s: s.replace("_", " "),
+                ex = st.selectbox("Registry species", species, key=f"e_{f['flag_id']}", format_func=lambda s: SV.display_name(s, cfg).capitalize(),
                                   index=species.index(best["species"]) if best and best["species"] in species else 0)
             else:
                 ex = None

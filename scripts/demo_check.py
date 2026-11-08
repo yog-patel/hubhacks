@@ -95,7 +95,10 @@ def main() -> None:
         check("4: review item #1 is 'unfamiliar'", "Possibly a species not in the registry" in body)
         check("4: item #1 is in the crab's time span (21:3x)", bool(first and first.group(1).startswith("21:3")),
               first.group(0) if first else "no time found")
-        page.get_by_placeholder("e.g. European green crab").fill(a.name)
+        box = page.get_by_placeholder("Pick from the Nova Scotia list, or type a name")
+        box.click()
+        box.fill(a.name)
+        page.keyboard.press("Enter")
         page.mouse.click(1000, 60)  # leave the text box so the shortcut is not typed into it
         time.sleep(1)
         page.keyboard.press("n")
