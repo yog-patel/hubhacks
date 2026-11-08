@@ -86,6 +86,25 @@ def main() -> None:
         settle(page, 4)
         full_shot(page, out / "3_results_before.png", 1440)
         check("3: results show the species table", "Counts by species" in page.inner_text("body"))
+        # 2b. verify counts at 22:00: BlueSight's marks next to the biologists' hand count; a click adds a fish
+        page.goto(f"{a.url}/verify?reviewer=Demo+Biologist")
+        settle(page, 5)
+        page.get_by_text("Verify another moment").click()
+        settle(page, 1)
+        page.get_by_role("button", name="Add moment").click()
+        settle(page, 6)
+        body = page.inner_text("body")
+        m = re.search(r"Count\n(\d+)\nBlueSight pre-marked (\d+)", body)
+        check("2b: 22:00 shows BlueSight's marks and the biologists' hand count 102",
+              bool(m) and "Biologists' hand count\n102" in body, f"BlueSight {m.group(2)} vs biologists 102" if m else "not shown")
+        page.frame_locator("iframe[title*='image_coordinates']").first.locator("img").click(position={"x": 25, "y": 25})
+        settle(page, 4)
+        m2 = re.search(r"Count\n(\d+)\nBlueSight pre-marked (\d+)", page.inner_text("body"))
+        check("2b: a click on the frame adds a fish", bool(m and m2 and int(m2.group(1)) == int(m.group(1)) + 1),
+              f"{m.group(1)} -> {m2.group(1)}" if m and m2 else "")
+        full_shot(page, out / "3b_verify_2200.png", 1440)
+        page.get_by_role("button", name="Reset").click()  # leave nothing saved: the demo does this step live
+        settle(page, 2)
         # 3. review queue: item 1 should be the crab (21:3x)
         page.goto(f"{a.url}/review?reviewer=Demo+Biologist")
         settle(page, 5)
@@ -101,6 +120,7 @@ def main() -> None:
         page.keyboard.press("n")
         settle(page, 5)
         full_shot(page, out / "5_review_after_approve.png", 1440)
+        check("5: invasive watch-list alert shown after approval", "on the invasive species watch list" in page.inner_text("body"))
         # 4. registry
         page.goto(f"{a.url}/registry?reviewer=Demo+Biologist")
         settle(page, 4)
@@ -114,6 +134,7 @@ def main() -> None:
         settle(page, 4)
         full_shot(page, out / "8_results_after.png", 1440)
         check("8: results now list the approved species", a.name.lower() in page.inner_text("body").lower())
+        check("8: results show the watch-list alert", "Watch list: European green crab detected" in page.inner_text("body"))
         # 6. model & privacy
         page.goto(f"{a.url}/privacy?reviewer=Demo+Biologist")
         settle(page, 4)

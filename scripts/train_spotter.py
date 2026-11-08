@@ -7,7 +7,8 @@ Training labels (one dot per counted fish, placed by Coastal Action biologists):
 The 22:00 count (demo half) is NEVER used for training or for choosing anything.
 
     python scripts/train_spotter.py cross     # honest test: train on T2-STAT2 only, test on T1-STAT2 14:01 (never seen)
-    python scripts/train_spotter.py final     # train on T2-STAT2 + T1 14:01 -> models/fishspotter/fishspotter_v1.pt
+    python scripts/train_spotter.py final     # train on T2-STAT2 + T1 14:01 + frames verified in the app
+                                              # (outputs/training/assisted/) -> models/fishspotter/fishspotter_v1.pt
 Results are appended to outputs/eval/experiments.json (id "E9").
 """
 from __future__ import annotations
@@ -68,6 +69,21 @@ def t1_samples() -> list[dict]:
     pts = gt_points().astype(np.float32)
     return [{"name": f"T1-14:01 frame {i}", "img": fr[i], "pts": pts, "valid": np.ones(fr[i].shape[:2], np.uint8)}
             for i in GT_IDX]
+
+
+def assisted_samples(cfg: dict) -> list[dict]:
+    """Frames verified on the Verify counts page: the biologist's final marks are the labels (outputs/training/assisted/)."""
+    import json
+
+    out = []
+    for f in sorted(path(cfg, "training_dir").glob("*.json")) if path(cfg, "training_dir").exists() else []:
+        rec = json.loads(f.read_text())
+        img = cv2.imread(str(f.with_suffix(".jpg")))
+        if img is None or not rec.get("points"):
+            continue
+        out.append({"name": f"verified {rec['run_id']} @ {rec['subsample_t_s']:.0f}s", "img": img,
+                    "pts": np.array(rec["points"], np.float32), "valid": np.ones(img.shape[:2], np.uint8)})
+    return out
 
 
 def target(h: int, w: int, pts: np.ndarray, sigma: float = 1.5) -> np.ndarray:
@@ -236,13 +252,14 @@ def final(steps: int) -> None:
     import torch
 
     cfg = load_config()
-    t2, t1 = t2_samples(), t1_samples()
-    samples = t2 + t1 * 2  # the target video's own frames weigh a little more
+    t2, t1, ver = t2_samples(), t1_samples(), assisted_samples(cfg)
+    print(f"training on {len(t2)} T2-STAT2 photos, {len(t1)} T1 14:01 frames, {len(ver)} verified frames")
+    samples = t2 + t1 * 2 + ver * 2  # the target video's own frames (and biologist-verified ones) weigh a little more
     net, secs = train(samples, cfg, steps)
     OUT.mkdir(parents=True, exist_ok=True)
     f = ROOT / cfg["fishspotter"]["weights"]
     torch.save({"model": net.state_dict(), "steps": steps, "train_s": secs,
-                "trained_on": [s["name"] for s in t2] + ["T1-STAT2 14:01 frames 25212-25216"]}, f)
+                "trained_on": [s["name"] for s in t2] + ["T1-STAT2 14:01 frames 25212-25216"] + [s["name"] for s in ver]}, f)
     print(f"saved {f} ({f.stat().st_size / 1e6:.1f} MB) after {secs:.0f}s")
 
 

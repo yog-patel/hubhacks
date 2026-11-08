@@ -1,4 +1,4 @@
-# DEMO: BlueSight AI (about 6½ minutes)
+# DEMO: BlueSight AI (about 8 minutes)
 
 **Video:** `T1-STAT2 411.MP4` (T1-STAT2, 10 Sept 2025, 35:47, 4K)
 **Demo window:** **21:20 → 22:35** (start **1280 s**, length **75 s**), in the demo half of the video, which was never used for tuning.
@@ -16,7 +16,7 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 * Open **http://localhost:8501/?reviewer=Demo+Biologist**. The `reviewer` part fills in "Your name" in the sidebar; or type a name there.
 * To prove "offline", turn Wi-Fi off now. Everything below works without a network.
-* Expected starting state: **Species registry** = only *Small schooling fish*. **Review queue**, *Show items from* `T1 STAT2 411 · 1280-1355s`: **17 items**, and item 1 is the green crab (**21:32–21:48**, *Possibly a species not in the registry*, item ID `…_1280-1355s_t353`).
+* Expected starting state (`reset_demo.py` also clears verified counts): **Species registry** = only *Small schooling fish*. **Review queue**, *Show items from* `T1 STAT2 411 · 1280-1355s`: **17 items**, and item 1 is the green crab (**21:32–21:48**, *Possibly a species not in the registry*, item ID `…_1280-1355s_t353`).
 
 ## 1. Murky water: enhancement and visibility (Analyze page, ~45 s)
 
@@ -37,6 +37,14 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
    * **Fish and visibility over time**: two stacked charts on the same time axis, with the 60-second subsample points dotted, the identification threshold dashed, and grey bands where it's too murky;
    * **Original and enhanced** slider, the **annotated video** (green = known, yellow "?" = uncertain, red "NEW?" = unfamiliar), and the **Download** buttons (CSV in the protocol spreadsheet layout, JSON).
 
+## 2b. AI-assisted counting closes the gap to the biologists' count (~1½ min)
+
+1. Sidebar **Verify counts**. Open **Verify another moment**: the time is already **1320** (22:00, the instant the biologists counted by hand). Click **Add moment**.
+2. Three cards: **Count 57** (BlueSight pre-marked 57), **Your corrections +0 / −0**, and **Biologists' hand count 102** (fish + 1 invertebrate).
+   *Say:* "We measured it: no automatic detector, ours or a bigger one we trained, finds these faint fish reliably. About half are only visible in motion (EVALUATION.md, v3 section). So instead of pretending, BlueSight pre-marks what it's sure of and the biologist finishes the count."
+3. **Zoom → Top centre** (or another ninth with fish). Click 3–4 faint fish BlueSight missed: magenta rings appear and **Count** goes up. Click a cyan ring on sand to remove it. **Save verified count**.
+4. *Say:* "Every click is saved as a training label for this footage, and the time per frame is measured, which gives us the staff-time number." (Extra moments are saved but not added to the protocol MeanCount; verifying the **21:20** subsample does change it, and Results then shows a green *Biologist-verified* banner.)
+
 ## 3. A held-out species is flagged as unfamiliar instead of mislabelled (~1 min)
 
 1. Sidebar **Review queue**. *Show items from* is the 1280-1355s analysis; the counter reads **0 of 17 reviewed**.
@@ -47,13 +55,13 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 ## 4. Approve it, and see it in the registry (~45 s)
 
 1. On item 1, type **European green crab** in *Species name*. Click outside the box, then press **N** (or click **New species**).
-   A toast confirms it, the counter moves to **1 of 17 reviewed**, and the next item appears. (Shortcuts: `N` new · `E` existing · `X` reject · `J` skip · `K` back.)
+   A toast confirms it, the counter moves to **1 of 17 reviewed**, and the next item appears. A red alert appears at the top: **"European green crab is on the invasive species watch list"** (the watch list is in `config.yaml`). (Shortcuts: `N` new · `E` existing · `X` reject · `J` skip · `K` back.)
 2. Sidebar **Species registry**: a **European green crab** card with the green **★ Added in review** badge, **Approved by Demo Biologist**, today's date, and 5 reference images (the crab crops). No retraining: the prototype was rebuilt instantly.
 
 ## 5. Re-run: the new species is recognised (~1 min)
 
 1. **Analyze** → same Custom window (1280 / 75) → **Analyze video** (cached detections, but the crops are re-identified against the new registry: about 40 s on the M5, **about 1½ minutes on an M2**. Talk through the registry card while it runs).
-2. **See full results**: **Species found** now includes **European green crab**, and the species table has a *European green crab* row. In the protocol subsamples it is counted as an **invertebrate**, not in total fish.
+2. **See full results**: a red **"Watch list: European green crab detected"** banner (5 tracks, first seen 21:29). **Species found** now includes **European green crab**, and the species table has a *European green crab* row. In the protocol subsamples it is counted as an **invertebrate**, not in total fish.
 3. Two more crab tracks that nobody reviewed (**21:29–21:42** and **21:35–21:48**) are now recognised automatically (EVALUATION.md §5b).
    *Be upfront:* a species approved from a single track has a loose prototype and also matches some sand patches. In the rehearsal 2 of the 5 tracks recognised as crab were outside the crab's walk (v1: 8 of 10). The fix is the review loop: confirm more crab examples with **Existing species** and **Reject** sand items. Rejected items become negative examples, and similar items are auto-rejected on the next run.
 
@@ -109,3 +117,7 @@ Set up from scratch (README quick start), then `scripts/demo_check.py`: **13/13 
 | Step 5, re-run after approving the crab | 83 s (161 s the first time) |
 
 `scripts/rehearse_demo.py` on the M2 reproduced the EVALUATION.md §5b numbers exactly: item 1 = crab, unfamiliar, 0.45, 21:32–21:48; after approval 5 tracks recognised as crab (3 inside the walk, incl. the unreviewed 21:29–21:42 and 21:35–21:48), 11 'probably crab?', review items 17 → 16.
+
+### Re-check after the v3 additions (Apple M2, 2026-11-08)
+
+`scripts/demo_check.py` now also checks step 2b (22:00: BlueSight 57 marks vs the biologists' 102; a click adds a fish, 57 → 58) and the watch-list alerts (after approval, and on Results after the re-run): **17/17 checks passed**. Re-run after approval: 51 s.
