@@ -1,6 +1,7 @@
 """Reset the review/registry state after a demo rehearsal.
 
-Removes species approved in the app (outputs/registry/*), clears all review decisions, rebuilds the
+Removes species approved in the app (outputs/registry/*), clears all review decisions, count checks,
+survey details and app edits to the watch list, rebuilds the
 registry from data/reference_images/, and re-runs the demo window (cached, ~1 min) so its review
 queue is fresh.   Usage: python scripts/reset_demo.py [--start 1280 --duration 75]
 """
@@ -28,6 +29,13 @@ if __name__ == "__main__":
         shutil.rmtree(reg_dir)
     db.x("DELETE FROM species WHERE source='approved'")
     db.x("UPDATE flags SET review_decision=NULL, review_species=NULL, reviewer=NULL, review_timestamp=NULL")
+    from bluesight import countcheck, survey  # noqa: E402
+
+    countcheck.ensure(db)
+    survey.ensure(db)
+    db.x("DELETE FROM frame_checks")
+    db.x("DELETE FROM surveys")
+    db.x("DELETE FROM watch_list WHERE updated_by != 'config.yaml'")
     print("registry:", Registry(cfg, db).build_from_folders())
     rep = run_video(a.video, cfg, a.start, a.duration)
     print(f"demo window re-run in {rep['runtime_s']} s; {rep['review_items']} review items")
