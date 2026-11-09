@@ -202,10 +202,11 @@ def page() -> None:
         st.success(f"**Biologist-verified:** {len(vdone)} of {len(pts)} subsamples. Verified MeanCount "
                    f"**{np.mean([v['final_count'] for v in vdone]):.1f}** organisms per subsample (AquaLens alone on the same "
                    f"frames: {np.mean(ai_same):.1f}). The CSV download includes the verified counts.", icon=":material/verified:")
-    else:
+    elif "assisted" in C.PAGES:
         st.info("In our tests AquaLens found about half of the faint fish a biologist counts (EVALUATION.md). For an exact "
                 "protocol count, check its marks on the subsample frames in **Verify counts**.", icon=":material/ads_click:")
-    st.page_link(C.PAGES["assisted"], label="Verify counts", icon=":material/ads_click:")
+    if "assisted" in C.PAGES:
+        st.page_link(C.PAGES["assisted"], label="Verify counts", icon=":material/ads_click:")
 
     # ------------------------------------------------------------------ species table
     st.subheader("Counts by species", anchor=False)

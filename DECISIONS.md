@@ -183,3 +183,10 @@ The Results page's annotated video now shows the enhanced frames (gray-world col
 `enhance` settings the detector uses) instead of the murky originals, so reviewers see what the detector sees.
 Display only: detections, counts and flags are unchanged. Switch back with `sampling.annotated_enhanced: false`.
 The key is excluded from the detection cache hash, so existing caches stay valid (demo window re-run: 11 s, cached).
+
+## D31. "Verify counts" page hidden from the app
+
+At the team's request the Verify counts page (AI-assisted counting, D27) is no longer shown in the sidebar, and the
+Results page no longer links to it. The code, database table and any saved verified counts are kept: set
+`assisted.show_page: true` in `config.yaml` to bring the page back. Results still shows a "Biologist-verified" banner if
+verified counts already exist for a run. `scripts/demo_check.py` skips its Verify step while the page is hidden.

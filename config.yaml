@@ -45,6 +45,7 @@ sampling:
 
 # AI-assisted counting on the protocol subsample frames (app page "Verify counts")
 assisted:
+  show_page: false         # "Verify counts" page in the app sidebar (hidden at the team's request, D31; true re-enables it)
   click_radius_px: 18       # a click this close to a mark removes it (px at process_width); otherwise it adds a fish
 
 # Coastal Action DRAFT FFH Video Analysis Protocol (overrides CLAUDE.md defaults; see DECISIONS.md)

@@ -1,6 +1,6 @@
 """AquaLens AI - Streamlit app.   Run:  streamlit run app/streamlit_app.py
 
-Pages: Analyze, Results, Verify counts, Review queue, Species registry, Model & privacy. Everything runs on this computer.
+Pages: Analyze, Results, Verify counts (if assisted.show_page), Review queue, Species registry, Model & privacy. Everything runs on this computer.
 UI code lives in app/ui/ (design tokens in app/ui/theme.py); the pipeline lives in src/bluesight/.
 """
 from __future__ import annotations
@@ -36,8 +36,11 @@ pages = {
     "registry": st.Page(page_registry.page, title="Species registry", icon=":material/collections_bookmark:", url_path="registry"),
     "privacy": st.Page(page_privacy.page, title="Model & privacy", icon=":material/verified_user:", url_path="privacy"),
 }
+if not C.cfg().get("assisted", {}).get("show_page", True):  # Verify counts hidden (config.yaml, D31)
+    del pages["assisted"]
 C.PAGES.update(pages)
-nav = st.navigation({"Survey": [pages["analyze"], pages["results"], pages["assisted"], pages["review"]],
+survey = [pages[k] for k in ("analyze", "results", "assisted", "review") if k in pages]
+nav = st.navigation({"Survey": survey,
                      "Reference": [pages["registry"], pages["privacy"]]})
 C.sidebar()
 nav.run()

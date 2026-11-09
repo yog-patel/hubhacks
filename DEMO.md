@@ -39,6 +39,8 @@ cd <the project folder>          # e.g. ~/Desktop/hubhacks
 
 ## 2b. AI-assisted counting closes the gap to the biologists' count (~1½ min)
 
+> **Hidden for now (D31):** the Verify counts page is switched off (`assisted.show_page: false` in `config.yaml`), so skip this step. Set it to `true` to demo it.
+
 1. Sidebar **Verify counts**. Open **Verify another moment**: the time is already **1320** (22:00, the instant the biologists counted by hand). Click **Add moment**.
 2. Three cards: **Count 57** (AquaLens pre-marked 57), **Your corrections +0 / −0**, and **Biologists' hand count 102** (fish + 1 invertebrate).
    *Say:* "We measured it: no automatic detector, ours or a bigger one we trained, finds these faint fish reliably. About half are only visible in motion (EVALUATION.md, v3 section). So instead of pretending, AquaLens pre-marks what it's sure of and the biologist finishes the count."
