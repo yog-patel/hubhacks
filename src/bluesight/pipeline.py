@@ -27,7 +27,7 @@ from . import count as C
 from .config import load_config, path, resolve_device
 from .db import DB, dumps, to_blob
 from .detect import Frame, get_detector
-from .enhance import visibility_score
+from .enhance import enhance_frame, visibility_score
 from .identify import (FLAG_STATUSES, auto_reject, KNOWN, LOW_VIS, REJECTED, UNCERTAIN, UNFAMILIAR, Thresholds,
                        classify_track, crop_quality, mean_embedding, merge_flagged, top_matches)
 from .io_video import VideoWriter, iter_sampled_frames, resize_width, video_info
@@ -254,7 +254,8 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
     run_id = f"{slug(vname)}__{int(start)}-{int(end)}s"
     run_dir = path(cfg, "runs_dir") / slug(vname) / f"{int(start)}-{int(end)}s"
     run_dir.mkdir(parents=True, exist_ok=True)
-    key_parts = [cfg["detector"], cfg["tracker"], cfg["sampling"], cfg["enhance"], cfg["identify"]["best_crops"], info.n_frames]
+    sampling_key = {k: v for k, v in cfg["sampling"].items() if k != "annotated_enhanced"}  # display-only, keeps caches valid
+    key_parts = [cfg["detector"], cfg["tracker"], sampling_key, cfg["enhance"], cfg["identify"]["best_crops"], info.n_frames]
     if cfg["detector"]["name"] == "fused":  # FishSpotter settings only matter (and only change the cache) when it runs
         key_parts.append(cfg.get("fishspotter"))
     det_key = hashlib.md5(json.dumps(key_parts).encode()).hexdigest()[:10]
@@ -460,10 +461,13 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
     status_by_track = {int(r.track_id): (r.status, r.species) for r in tracks.itertuples()} if len(tracks) else {}
     writer = None
     by_frame = {k: g for k, g in dets.groupby("frame_idx")}
+    ann_enhanced = bool(cfg["sampling"].get("annotated_enhanced", True))
     for fr in frames.itertuples():
         img = cv2.imread(str(cdir / "thumbs" / f"{fr.frame_idx:07d}.jpg"))
         if img is None:
             continue
+        if ann_enhanced:  # draw on the colour-corrected, contrast-boosted frame (what the detector sees), not the murky original
+            img = enhance_frame(img, cfg["enhance"])
         f2 = img.shape[1] / (cfg["sampling"]["process_width"])
         for r in by_frame.get(fr.frame_idx, pd.DataFrame()).itertuples():
             st, sp = status_by_track.get(int(r.track_id), (LOW_VIS, None))
@@ -510,7 +514,7 @@ def _run_video(video_path: str | Path, cfg: dict[str, Any] | None = None, start_
         "protocol_window": proto_window,
         "review_items": len(items), "review_items_packaged": len(flag_ids), "flags": flag_ids,
         "registry_species": names,
-        "annotated_video": str(ann_path), "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
+        "annotated_video": str(ann_path), "annotated_enhanced": ann_enhanced, "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
     }
     (run_dir / "report.json").write_text(json.dumps(report, indent=2, default=float))
     pd.DataFrame(sub_rows).to_csv(run_dir / "report.csv", index=False)

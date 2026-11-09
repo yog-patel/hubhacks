@@ -176,3 +176,10 @@ keep the old name so existing installs, caches and scripts keep working: the Pyt
 database `outputs/bluesight.db`, the `BLUESIGHT_ALLOW_DOWNLOADS` environment variable and evaluation JSON keys.
 The sidebar's light/dark theme hint was removed at the team's request (the theme still follows the computer and can be
 changed in Streamlit's settings menu).
+
+## D30. Annotated video drawn on enhanced frames
+
+The Results page's annotated video now shows the enhanced frames (gray-world colour correction + CLAHE, the same
+`enhance` settings the detector uses) instead of the murky originals, so reviewers see what the detector sees.
+Display only: detections, counts and flags are unchanged. Switch back with `sampling.annotated_enhanced: false`.
+The key is excluded from the detection cache hash, so existing caches stay valid (demo window re-run: 11 s, cached).

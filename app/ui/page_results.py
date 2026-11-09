@@ -269,7 +269,9 @@ def page() -> None:
         ann = rep.get("annotated_video")
         if ann and Path(ann).exists():
             st.video(str(ann))
-            st.html('<p class="bs-small">Plays the sampled frames (2 per second). Box colours and labels: '
+            st.html('<p class="bs-small">Plays the sampled frames (2 per second)'
+                    + (', enhanced (colour-corrected, contrast boosted)' if rep.get("annotated_enhanced") else '')
+                    + '. Box colours and labels: '
                     '<b>green</b> known species (name shown) · <b>yellow</b> "?" uncertain · <b>red</b> "NEW?" unfamiliar · '
                     '<b>grey</b> no label: too murky or brief to identify.</p>')
         else:

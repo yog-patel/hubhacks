@@ -41,6 +41,7 @@ sampling:
   process_width: 1920     # frames are downscaled to this width for detection (4K -> 1080p)
   crop_pad: 0.6           # padding around a box when cutting crops from the full-res frame
   annotated_width: 1280   # width of the annotated output video
+  annotated_enhanced: true  # draw the annotated video on enhanced frames (false = original murky frames)
 
 # AI-assisted counting on the protocol subsample frames (app page "Verify counts")
 assisted:
